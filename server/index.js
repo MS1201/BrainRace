@@ -9,7 +9,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://ms9409621877:Mukul_@1201@cluster0.l0eloyz.mongodb.net/?appName=Cluster0';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://ms9409621877:Mukul_%401201@cluster0.l0eloyz.mongodb.net/?appName=Cluster0';
 
 console.log('Attempting to connect to MongoDB...');
 // Mask password in logs
