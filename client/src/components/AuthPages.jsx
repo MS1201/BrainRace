@@ -19,7 +19,8 @@ const AuthPages = ({ onAuth }) => {
         setError('');
         
         // Special case for Teacher Dashboard
-        if (isLogin && !isOtpMode && email === 'mukulsharma22@gnu.ac.in' && password === 'Admin@1234') {
+        const cleanEmail = email.trim().toLowerCase();
+        if (isLogin && !isOtpMode && cleanEmail === 'mukulsharma22@gnu.ac.in' && password === 'Admin@1234') {
             setTimeout(() => {
                 onAuth({ 
                     name: 'Mukul Sharma', 
