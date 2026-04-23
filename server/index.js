@@ -9,7 +9,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://mukul:mukul@localhost:27017/';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://ms9409621877:Mukul_@1201@cluster0.l0eloyz.mongodb.net/?appName=Cluster0';
 
 console.log('Attempting to connect to MongoDB...');
 // Mask password in logs
@@ -59,7 +59,7 @@ const User = mongoose.model('User', UserSchema);
 
 const app = express();
 const allowedOrigins = [
-    "http://localhost:5173", 
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
     process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -73,8 +73,8 @@ app.use(express.json());
 
 // Health Check
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'ok', 
+    res.json({
+        status: 'ok',
         database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
         time: new Date()
     });
@@ -178,10 +178,10 @@ app.post('/api/verify-otp', async (req, res) => {
         const { email, otp } = req.body;
         if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
 
-        const user = await User.findOne({ 
-            email, 
-            otp: otp.toString().trim(), 
-            otpExpires: { $gt: new Date() } 
+        const user = await User.findOne({
+            email,
+            otp: otp.toString().trim(),
+            otpExpires: { $gt: new Date() }
         });
 
         if (!user) return res.status(401).json({ error: 'Invalid or expired OTP' });
