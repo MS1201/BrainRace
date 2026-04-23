@@ -16,6 +16,21 @@ const AuthPages = ({ onAuth }) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
+        
+        // Special case for Teacher Dashboard
+        if (isLogin && !isOtpMode && email === 'mukulsharma22@gnu.ac.in' && password === 'Admin@1234') {
+            setTimeout(() => {
+                onAuth({ 
+                    name: 'Mukul Sharma', 
+                    email: 'mukulsharma22@gnu.ac.in', 
+                    role: 'teacher',
+                    score: 9999
+                });
+                setIsLoading(false);
+            }, 1000);
+            return;
+        }
+
         const API_BASE = `http://${window.location.hostname}:3001/api`;
         try {
             if (isOtpMode && !otpSent) {

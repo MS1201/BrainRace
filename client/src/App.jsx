@@ -13,6 +13,7 @@ import LogicFlow from './components/games/LogicFlow.jsx';
 import ColorMatch from './components/games/ColorMatch.jsx';
 import BrainBuddy from './components/games/BrainBuddy.jsx';
 import MathDrops from './components/games/MathDrops.jsx';
+import TeacherDashboard from './components/TeacherDashboard.jsx';
 
 const SOCKET_URL = 'http://127.0.0.1:3001';
 
@@ -27,7 +28,14 @@ function App() {
         }
     });
 
-    const [view, setView] = useState('dashboard');
+    const [view, setView] = useState(() => {
+        const saved = localStorage.getItem('brainrace_user');
+        if (saved) {
+            const u = JSON.parse(saved);
+            return u.role === 'teacher' ? 'teacherDashboard' : 'dashboard';
+        }
+        return 'dashboard';
+    });
     const [gameMode, setGameMode] = useState(null);
     const [multiplayerData, setMultiplayerData] = useState(null);
     const [socket, setSocket] = useState(null);
@@ -41,7 +49,11 @@ function App() {
     const handleAuth = (userData) => {
         setUser(userData);
         localStorage.setItem('brainrace_user', JSON.stringify(userData));
-        setView('dashboard');
+        if (userData.role === 'teacher') {
+            setView('teacherDashboard');
+        } else {
+            setView('dashboard');
+        }
     };
 
     const handleLogout = () => {
@@ -73,7 +85,7 @@ function App() {
 
     const handleBackToDashboard = () => {
         // Refresh user from server to get updated score
-        if (user) {
+        if (user && user.role !== 'teacher') {
             fetch(`http://127.0.0.1:3001/api/user/${encodeURIComponent(user.name)}`)
                 .then(r => r.json())
                 .then(updated => {
@@ -85,7 +97,7 @@ function App() {
                 })
                 .catch(() => {});
         }
-        setView('dashboard');
+        setView(user?.role === 'teacher' ? 'teacherDashboard' : 'dashboard');
         setGameMode(null);
         setMultiplayerData(null);
     };
@@ -133,6 +145,10 @@ function App() {
 
             {view === 'dashboard' && (
                 <DashboardNew user={user} onSelectMode={handleSelectMode} />
+            )}
+
+            {view === 'teacherDashboard' && (
+                <TeacherDashboard user={user} onBack={() => setView('dashboard')} />
             )}
 
             {view === 'gameDetail' && gameMode && (
