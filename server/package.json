@@ -1,0 +1,13 @@
+{
+    "name": "brainrace-server",
+    "version": "1.0.0",
+    "main": "index.js",
+    "dependencies": {
+        "bcryptjs": "^3.0.3",
+        "cors": "^2.8.5",
+        "express": "^4.19.2",
+        "mongoose": "^9.2.3",
+        "nodemailer": "^8.0.4",
+        "socket.io": "^4.7.5"
+    }
+}

@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+    @keyframes moveRoad {
+        from {
+            transform: translateY(-50%);
+        }
+
+        to {
+            transform: translateY(0);
+        }
+    }
+
+    .neon-border {
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), inset 0 0 10px rgba(0, 255, 255, 0.2);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+    }
+
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .text-glow {
+        text-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
+    }
+
+    .bg-grid {
+        background-image:
+            linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+        background-size: 40px 40px;
+    }
+}
