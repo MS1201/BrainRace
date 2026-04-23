@@ -11,9 +11,17 @@ const crypto = require('crypto');
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mukul:mukul@localhost:27017/';
 
+console.log('Attempting to connect to MongoDB...');
+// Mask password in logs
+const maskedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
+console.log('Target:', maskedUri);
+
 mongoose.connect(MONGO_URI)
-    .then(() => console.log('Connected to MongoDB!'))
-    .catch(err => console.error('MongoDB connection error:', err));
+    .then(() => console.log('✅ Connected to MongoDB Atlas!'))
+    .catch(err => {
+        console.error('❌ MongoDB connection error:', err.message);
+        console.log('Check if your IP is whitelisted in MongoDB Atlas.');
+    });
 
 // Basic Schema for storing scores
 const ScoreSchema = new mongoose.Schema({
@@ -62,6 +70,15 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+
+// Health Check
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        time: new Date()
+    });
+});
 
 // Serve static files from the client/dist folder in production
 if (process.env.NODE_ENV === 'production') {
