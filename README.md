@@ -20,6 +20,27 @@ BrainRace is a premium, high-performance brain-training platform featuring a sui
 - **Backend**: Node.js/Express.
 - **Tooling**: Git for version control.
 
+## ☁️ Deployment Guide (Render + MongoDB Atlas)
+
+### 1. Database Setup
+- Create a free cluster on [MongoDB Atlas](https://www.mongodb.com/).
+- Add your IP address to the whitelist and create a database user.
+- Copy your connection string.
+
+### 2. Cloud Hosting (Render)
+- Connect your GitHub repo to [Render.com](https://render.com).
+- Create a new **Web Service**.
+- **Build Command**: `npm run build`
+- **Start Command**: `npm run start`
+- **Environment Variables**:
+  - `MONGO_URI`: Your Atlas connection string.
+  - `NODE_ENV`: `production`
+  - `FRONTEND_URL`: Your Render app URL.
+
+## 🔑 Admin Credentials
+- **Email**: `mukulsharma22@gnu.ac.in`
+- **Password**: `Admin@1234`
+
 ## 📦 Installation
 
 1. **Clone the repository**:
