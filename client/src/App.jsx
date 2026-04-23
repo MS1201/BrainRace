@@ -14,6 +14,7 @@ import ColorMatch from './components/games/ColorMatch.jsx';
 import BrainBuddy from './components/games/BrainBuddy.jsx';
 import MathDrops from './components/games/MathDrops.jsx';
 import TeacherDashboard from './components/TeacherDashboard.jsx';
+import LandingPage from './components/LandingPage.jsx';
 
 const SOCKET_URL = 'http://127.0.0.1:3001';
 
@@ -34,7 +35,7 @@ function App() {
             const u = JSON.parse(saved);
             return u.role === 'teacher' ? 'teacherDashboard' : 'dashboard';
         }
-        return 'dashboard';
+        return 'landing';
     });
     const [gameMode, setGameMode] = useState(null);
     const [multiplayerData, setMultiplayerData] = useState(null);
@@ -106,8 +107,22 @@ function App() {
         setView('gameDetail');
     };
 
-    if (!user) {
-        return <AuthPages onAuth={handleAuth} />;
+    if (!user && view === 'landing') {
+        return <LandingPage onGetStarted={() => setView('auth')} />;
+    }
+
+    if (!user && view === 'auth') {
+        return (
+            <div>
+                <button 
+                    onClick={() => setView('landing')}
+                    style={{ position: 'fixed', top: '24px', left: '24px', zIndex: 100, color: '#fff', background: 'rgba(255,255,255,0.1)', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700 }}
+                >
+                    ← Back
+                </button>
+                <AuthPages onAuth={handleAuth} />
+            </div>
+        );
     }
 
     const renderGame = () => {
