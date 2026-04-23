@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import API_BASE from '../config';
 
 const TeacherDashboard = ({ user, onBack }) => {
     const [stats, setStats] = useState({
@@ -14,7 +15,7 @@ const TeacherDashboard = ({ user, onBack }) => {
         // Fetch some real data from backend to make it look active
         const fetchDashboardData = async () => {
             try {
-                const response = await fetch(`http://${window.location.hostname}:3001/api/leaderboard`);
+                const response = await fetch(`${API_BASE}/api/leaderboard`);
                 const leaderboard = await response.json();
                 
                 // Simulate some teacher stats

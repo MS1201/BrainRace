@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Play, Trophy, Zap, Star, Brain, Rocket, Sparkles, Gamepad2, Users, Medal, ArrowUpRight, ChevronRight, Activity } from 'lucide-react';
+import API_BASE from '../config';
 
 /* ─── Rank System ─────────────────────────────────────────────────────────── */
 const RANKS = [
@@ -82,7 +83,7 @@ const DashboardNew = ({ user, onSelectMode }) => {
         : 100;
 
     useEffect(() => {
-        fetch('http://localhost:3001/api/leaderboard')
+        fetch(`${API_BASE}/api/leaderboard`)
             .then(r => r.json()).then(setLeaderboard).catch(() => {});
     }, []);
 

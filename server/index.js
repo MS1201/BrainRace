@@ -8,7 +8,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 
-const MONGO_URI = 'mongodb://mukul:mukul@localhost:27017/';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://mukul:mukul@localhost:27017/';
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log('Connected to MongoDB!'))
@@ -49,12 +49,29 @@ const User = mongoose.model('User', UserSchema);
 
 
 const app = express();
+const allowedOrigins = [
+    "http://localhost:5173", 
+    "http://127.0.0.1:5173",
+    process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 app.use(express.json());
+
+// Serve static files from the client/dist folder in production
+if (process.env.NODE_ENV === 'production') {
+    const path = require('path');
+    app.use(express.static(path.join(__dirname, '../client/dist')));
+    app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+        }
+    });
+}
 
 const server = http.createServer(app);
 
@@ -204,7 +221,7 @@ app.post('/api/update-score', async (req, res) => {
 
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+        origin: allowedOrigins,
         methods: ["GET", "POST"]
     }
 });
@@ -297,7 +314,7 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import API_BASE from '../config';
 
 const AuthPages = ({ onAuth }) => {
     const [isLogin, setIsLogin] = useState(true);
@@ -31,11 +32,10 @@ const AuthPages = ({ onAuth }) => {
             return;
         }
 
-        const API_BASE = `http://${window.location.hostname}:3001/api`;
         try {
             if (isOtpMode && !otpSent) {
                 // Request OTP logic
-                const response = await fetch(`${API_BASE}/request-otp`, {
+                const response = await fetch(`${API_BASE}/api/request-otp`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
@@ -52,7 +52,7 @@ const AuthPages = ({ onAuth }) => {
             const endpoint = isOtpMode ? 'verify-otp' : (isLogin ? 'login' : 'signup');
             const payload = isOtpMode ? { email, otp } : (isLogin ? { email, password } : { name, email, password });
 
-            const response = await fetch(`${API_BASE}/${endpoint}`, {
+            const response = await fetch(`${API_BASE}/api/${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

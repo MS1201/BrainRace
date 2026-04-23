@@ -15,8 +15,9 @@ import BrainBuddy from './components/games/BrainBuddy.jsx';
 import MathDrops from './components/games/MathDrops.jsx';
 import TeacherDashboard from './components/TeacherDashboard.jsx';
 import LandingPage from './components/LandingPage.jsx';
+import API_BASE from './config';
 
-const SOCKET_URL = 'http://127.0.0.1:3001';
+const SOCKET_URL = API_BASE;
 
 function App() {
     const [user, setUser] = useState(() => {
@@ -87,7 +88,7 @@ function App() {
     const handleBackToDashboard = () => {
         // Refresh user from server to get updated score
         if (user && user.role !== 'teacher') {
-            fetch(`http://127.0.0.1:3001/api/user/${encodeURIComponent(user.name)}`)
+            fetch(`${API_BASE}/api/user/${encodeURIComponent(user.name)}`)
                 .then(r => r.json())
                 .then(updated => {
                     if (updated && updated.name) {
