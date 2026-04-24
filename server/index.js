@@ -9,7 +9,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://ms9409621877:Mukul_%401201@cluster0.l0eloyz.mongodb.net/?appName=Cluster0';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://ms9409621877:Mukul_%401201@cluster0.l0eloyz.mongodb.net/BrainRace?appName=Cluster0';
 
 console.log('Attempting to connect to MongoDB...');
 // Mask password in logs
@@ -97,10 +97,10 @@ const server = http.createServer(app);
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false, // true for 465, false for other ports
+    secure: false, 
     auth: {
-        user: 'ms9409621877@gmail.com',
-        pass: 'mgsi pvoz ohxw pixb'
+        user: process.env.EMAIL_USER || 'ms9409621877@gmail.com',
+        pass: process.env.EMAIL_PASS || 'mgsi pvoz ohxw pixb'
     }
 });
 

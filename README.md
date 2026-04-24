@@ -36,6 +36,8 @@ BrainRace is a premium, high-performance brain-training platform featuring a sui
   - `MONGO_URI`: Your Atlas connection string.
   - `NODE_ENV`: `production`
   - `FRONTEND_URL`: Your Render app URL.
+  - `EMAIL_USER`: Your Gmail address for sending OTPs.
+  - `EMAIL_PASS`: Your Gmail App Password.
 
 ## 🔑 Admin Credentials
 - **Email**: `mukulsharma22@gnu.ac.in`
