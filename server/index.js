@@ -273,7 +273,28 @@ app.post('/api/update-score', async (req, res) => {
 app.get('/api/admin/users', async (req, res) => {
     try {
         const users = await User.find().select('-password');
-        res.json(users);
+        
+        // Also find unique players from Score collection who might not have a User record
+        const scores = await Score.aggregate([
+            { $group: { _id: "$playerName", totalScore: { $sum: "$score" }, lastPlayed: { $max: "$date" }, count: { $sum: 1 } } }
+        ]);
+
+        const students = [...users];
+        
+        // Merge score-only players
+        scores.forEach(s => {
+            if (!students.find(u => u.name === s._id)) {
+                students.push({
+                    name: s._id,
+                    totalScore: s.totalScore,
+                    gamesPlayed: s.count,
+                    role: 'guest',
+                    isLegacy: true
+                });
+            }
+        });
+
+        res.json(students);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

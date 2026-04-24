@@ -28,16 +28,21 @@ const TeacherDashboard = ({ user, onBack }) => {
             const userRes = await fetch(`${API_BASE}/api/admin/users`);
             const students = await userRes.json();
             
+            if (!Array.isArray(students)) {
+                console.error("Expected array of students, got:", students);
+                setStats(prev => ({ ...prev, students: [] }));
+            } else {
+                setStats({
+                    totalUsers: students.length,
+                    activeGames: 8,
+                    avgScore: Math.round(students.reduce((acc, curr) => acc + (curr.totalScore || 0), 0) / (students.length || 1)),
+                    students: students.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0))
+                });
+            }
+
             const qRes = await fetch(`${API_BASE}/api/questions`);
             const qs = await qRes.json();
-            setQuestions(qs);
-
-            setStats({
-                totalUsers: students.length,
-                activeGames: 8,
-                avgScore: Math.round(students.reduce((acc, curr) => acc + (curr.totalScore || 0), 0) / (students.length || 1)),
-                students: students.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0))
-            });
+            if (Array.isArray(qs)) setQuestions(qs);
         } catch (err) {
             console.error("Dashboard fetch error:", err);
         } finally {
@@ -340,13 +345,16 @@ const TeacherDashboard = ({ user, onBack }) => {
                                 <tbody>
                                     {stats.students.map((s, i) => (
                                         <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                            <td style={{ padding: '16px', fontWeight: 600 }}>{s.name}</td>
+                                            <td style={{ padding: '16px', fontWeight: 600 }}>
+                                                {s.name}
+                                                {s.isLegacy && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '2px 6px', borderRadius: '4px' }}>LEGACY</span>}
+                                            </td>
                                             <td style={{ padding: '16px', color: '#22d3ee', fontWeight: 800 }}>{s.totalScore || 0}</td>
                                             <td style={{ padding: '16px' }}>{s.gamesPlayed || 0}</td>
                                             <td style={{ padding: '16px' }}>
                                                 <span style={{ 
-                                                    background: s.role === 'teacher' ? 'rgba(168,85,247,0.1)' : 'rgba(34,211,238,0.1)', 
-                                                    color: s.role === 'teacher' ? '#a855f7' : '#22d3ee', 
+                                                    background: s.role === 'teacher' ? 'rgba(168,85,247,0.1)' : s.role === 'guest' ? 'rgba(255,255,255,0.05)' : 'rgba(34,211,238,0.1)', 
+                                                    color: s.role === 'teacher' ? '#a855f7' : s.role === 'guest' ? 'rgba(255,255,255,0.4)' : '#22d3ee', 
                                                     padding: '4px 12px', 
                                                     borderRadius: '8px', 
                                                     fontSize: '12px', 

@@ -61,7 +61,7 @@ function App() {
     const handleLogout = () => {
         setUser(null);
         localStorage.removeItem('brainrace_user');
-        setView('dashboard');
+        setView('auth');
         setGameMode(null);
     };
 
