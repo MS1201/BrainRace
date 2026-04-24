@@ -16,11 +16,15 @@ console.log('Attempting to connect to MongoDB...');
 const maskedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
 console.log('Target:', maskedUri);
 
-mongoose.connect(MONGO_URI)
+mongoose.set('bufferCommands', false);
+
+mongoose.connect(MONGO_URI, {
+    serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+})
     .then(() => console.log('✅ Connected to MongoDB Atlas!'))
     .catch(err => {
         console.error('❌ MongoDB connection error:', err.message);
-        console.log('Check if your IP is whitelisted in MongoDB Atlas.');
+        console.log('👉 ACTION REQUIRED: Check if your IP is whitelisted in MongoDB Atlas (Network Access tab).');
     });
 
 // Basic Schema for storing scores
