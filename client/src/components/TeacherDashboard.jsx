@@ -9,6 +9,9 @@ const TeacherDashboard = ({ user, onBack }) => {
         avgScore: 0,
         students: []
     });
+    const [questions, setQuestions] = useState([]);
+    const [showQuestionEditor, setShowQuestionEditor] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [editingQuestion, setEditingQuestion] = useState(null);
     const [newQuestion, setNewQuestion] = useState({ 
         gameType: 'logic-flow', 
