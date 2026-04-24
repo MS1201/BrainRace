@@ -144,7 +144,7 @@ const Lobby = ({ onJoin, socket, user }) => {
                             required
                             value={playerName}
                             onChange={e => setPlayerName(e.target.value)}
-                            className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-gray-900 rounded-3xl transition-all font-bold outline-none"
+                            className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-gray-900 rounded-3xl transition-all font-bold outline-none text-gray-900 placeholder:text-gray-300"
                             placeholder="Enter nickname..."
                         />
                     </div>
@@ -156,7 +156,7 @@ const Lobby = ({ onJoin, socket, user }) => {
                             required
                             value={roomId}
                             onChange={e => setRoomId(e.target.value)}
-                            className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-gray-900 rounded-3xl transition-all font-bold outline-none uppercase"
+                            className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-gray-900 rounded-3xl transition-all font-bold outline-none uppercase text-gray-900 placeholder:text-gray-300"
                             placeholder="e.g. SKY-RACER"
                         />
                     </div>

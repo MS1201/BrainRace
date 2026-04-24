@@ -84,6 +84,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                     name: user?.name || 'Player',
                     lane: carLane,
                     score: scoreRef.current,
+                    team: multiplayerData?.team || 'Red'
                 });
             }
 
@@ -347,9 +348,11 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                 >
                     <div style={{
                         width: '100%', height: '100%',
-                        background: 'linear-gradient(180deg, #22d3ee, #1e40af)',
+                        background: (multiplayerData?.team === 'Blue') 
+                            ? 'linear-gradient(180deg, #3b82f6, #1e3a8a)' 
+                            : 'linear-gradient(180deg, #ef4444, #991b1b)',
                         borderRadius: '16px',
-                        border: '2px solid rgba(34,211,238,0.6)',
+                        border: `2px solid ${(multiplayerData?.team === 'Blue') ? 'rgba(59,130,246,0.6)' : 'rgba(239,68,68,0.6)'}`,
                         boxShadow: '0 15px 30px rgba(0,0,0,0.5)',
                         position: 'relative', overflow: 'hidden'
                     }}>
@@ -358,7 +361,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                         <div style={{ position: 'absolute', bottom: '4px', left: '6px', width: '14px', height: '5px', background: '#ef4444', borderRadius: '3px', boxShadow: '0 0 8px rgba(239,68,68,1)' }} />
                         <div style={{ position: 'absolute', bottom: '4px', right: '6px', width: '14px', height: '5px', background: '#ef4444', borderRadius: '3px', boxShadow: '0 0 8px rgba(239,68,68,1)' }} />
                     </div>
-                    <div style={{ position: 'absolute', bottom: '-16px', left: '50%', transform: 'translateX(-50%)', width: '50px', height: '20px', background: 'rgba(34,211,238,0.25)', borderRadius: '50%', filter: 'blur(8px)' }} />
+                    <div style={{ position: 'absolute', bottom: '-16px', left: '50%', transform: 'translateX(-50%)', width: '50px', height: '20px', background: (multiplayerData?.team === 'Blue') ? 'rgba(59,130,246,0.25)' : 'rgba(239,68,68,0.25)', borderRadius: '50%', filter: 'blur(8px)' }} />
                 </motion.div>
 
                 {/* Opponent Cars */}
@@ -377,9 +380,11 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                     >
                         <div style={{
                             width: '100%', height: '100%',
-                            background: 'linear-gradient(180deg, #ef4444, #991b1b)',
+                            background: (opp.team === 'Blue') 
+                                ? 'linear-gradient(180deg, #3b82f6, #1e3a8a)' 
+                                : 'linear-gradient(180deg, #ef4444, #991b1b)',
                             borderRadius: '16px',
-                            border: '2px solid rgba(239,68,68,0.6)',
+                            border: `2px solid ${(opp.team === 'Blue') ? 'rgba(59,130,246,0.6)' : 'rgba(239,68,68,0.6)'}`,
                             boxShadow: '0 15px 30px rgba(0,0,0,0.5)',
                             position: 'relative', overflow: 'hidden'
                         }}>
@@ -388,7 +393,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                              </div>
                              <div style={{ position: 'absolute', top: '18px', left: '8px', right: '8px', height: '14px', background: 'rgba(0,0,0,0.6)', borderRadius: '6px' }} />
                         </div>
-                        <div style={{ position: 'absolute', bottom: '-12px', left: '50%', transform: 'translateX(-50%)', width: '40px', height: '15px', background: 'rgba(239,68,68,0.2)', borderRadius: '50%', filter: 'blur(6px)' }} />
+                        <div style={{ position: 'absolute', bottom: '-12px', left: '50%', transform: 'translateX(-50%)', width: '40px', height: '15px', background: (opp.team === 'Blue') ? 'rgba(59,130,246,0.2)' : 'rgba(239,68,68,0.2)', borderRadius: '50%', filter: 'blur(6px)' }} />
                     </motion.div>
                 ))}
 
