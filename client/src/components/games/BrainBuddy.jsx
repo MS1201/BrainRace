@@ -194,6 +194,8 @@ const BrainBuddy = ({ user, onBack }) => {
     const [streak, setStreak] = useState(0);
     const [totalCorrect, setTotalCorrect] = useState(0);
     const [showExplanation, setShowExplanation] = useState(false);
+    const [opponents, setOpponents] = useState({});
+    const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
     const timerRef = useRef(null);
 
     useEffect(() => {
@@ -224,7 +226,42 @@ const BrainBuddy = ({ user, onBack }) => {
     }, []);
 
     useEffect(() => {
+        if (!socket) return;
+        socket.on('opponentUpdate', (data) => {
+            if (data.id !== socket?.id) {
+                setOpponents(prev => ({ ...prev, [data.id]: data }));
+            }
+        });
+
+        socket.on('scoreUpdate', (scores) => {
+            setTeamScores(scores);
+        });
+
+        socket.on('gameOver', ({ winner }) => {
+            setGameState('finished');
+        });
+
+        return () => {
+            socket.off('opponentUpdate');
+            socket.off('scoreUpdate');
+            socket.off('gameOver');
+        };
+    }, [socket]);
+
+    useEffect(() => {
         if (gameState !== 'playing' || status) return;
+
+        if (socket && multiplayerData?.roomId) {
+            socket.emit('playerUpdate', {
+                id: socket.id,
+                roomId: multiplayerData.roomId,
+                name: user?.name || 'Player',
+                score: score,
+                team: multiplayerData.team,
+                currentIdx: currentIdx
+            });
+        }
+
         timerRef.current = setInterval(() => {
             setTimer(t => {
                 if (t <= 1) {
@@ -236,7 +273,7 @@ const BrainBuddy = ({ user, onBack }) => {
             });
         }, 1000);
         return () => clearInterval(timerRef.current);
-    }, [gameState, currentIdx, status]);
+    }, [gameState, currentIdx, status, score, socket, multiplayerData]);
 
     const handleAnswer = (option) => {
         if (status) return;
@@ -254,6 +291,15 @@ const BrainBuddy = ({ user, onBack }) => {
             setStreak(str => str + 1);
             setTotalCorrect(c => c + 1);
             setStatus('correct');
+
+            if (socket && multiplayerData?.roomId) {
+                socket.emit('submitAnswer', {
+                    roomId: multiplayerData.roomId,
+                    isCorrect: true,
+                    team: multiplayerData.team,
+                    points: 10
+                });
+            }
         } else {
             setStreak(0);
             setLives(l => l - 1);
@@ -535,6 +581,7 @@ const BrainBuddy = ({ user, onBack }) => {
                 marginBottom: '20px', gap: '12px'
             }}>
                 {/* Back */}
+                {/* Back */}
                 <button onClick={onBack} style={{
                     padding: '10px 16px', background: 'rgba(255,255,255,0.06)',
                     border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
@@ -543,6 +590,37 @@ const BrainBuddy = ({ user, onBack }) => {
                 }}>
                     <ArrowLeft size={16} /> Back
                 </button>
+
+                {/* Team Progress HUD (Multiplayer) */}
+                {multiplayerData && (
+                    <div style={{
+                        position: 'fixed', top: '20px', right: '20px', zIndex: 100,
+                        width: '180px', background: 'rgba(255,255,255,0.05)',
+                        backdropFilter: 'blur(20px)', borderRadius: '24px',
+                        padding: '16px', border: '1px solid rgba(255,255,255,0.1)',
+                        display: 'flex', flexDirection: 'column', gap: '10px'
+                    }}>
+                        <div style={{ fontSize: '9px', fontWeight: 900, color: 'rgba(255,255,255,0.4)', letterSpacing: '2px', textAlign: 'center' }}>TEAM PROGRESS</div>
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 900, color: '#ef4444', marginBottom: '3px' }}>
+                                <span>RED</span>
+                                <span>{teamScores.Red}</span>
+                            </div>
+                            <div style={{ height: '5px', background: 'rgba(239,68,68,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <motion.div animate={{ width: `${(teamScores.Red / 200) * 100}%` }} style={{ height: '100%', background: '#ef4444' }} />
+                            </div>
+                        </div>
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 900, color: '#3b82f6', marginBottom: '3px' }}>
+                                <span>BLUE</span>
+                                <span>{teamScores.Blue}</span>
+                            </div>
+                            <div style={{ height: '5px', background: 'rgba(59,130,246,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <motion.div animate={{ width: `${(teamScores.Blue / 200) * 100}%` }} style={{ height: '100%', background: '#3b82f6' }} />
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Score */}
                 <div style={{
@@ -553,6 +631,23 @@ const BrainBuddy = ({ user, onBack }) => {
                     <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>Score</div>
                     <div style={{ fontSize: '22px', fontWeight: 900, color: '#f59e0b' }}>{score.toLocaleString()}</div>
                 </div>
+
+                {/* Opponents (Multiplayer Mini-Map) */}
+                {multiplayerData && Object.keys(opponents).length > 0 && (
+                    <div style={{
+                        position: 'fixed', left: '20px', top: '100px', display: 'flex', flexDirection: 'column', gap: '8px'
+                    }}>
+                        {Object.values(opponents).map(opp => (
+                            <div key={opp.id} style={{
+                                padding: '8px 12px', background: 'rgba(255,255,255,0.05)',
+                                borderRadius: '12px', borderLeft: `4px solid ${opp.team === 'Red' ? '#ef4444' : '#3b82f6'}`,
+                                fontSize: '11px', color: '#fff', fontWeight: 600
+                            }}>
+                                {opp.name}: Q{opp.currentIdx + 1}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Lives + Streak */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>

@@ -93,9 +93,9 @@ app.use(express.json());
 app.use((req, res, next) => {
     // Only check for API routes
     if (req.path.startsWith('/api') && req.path !== '/api/health' && mongoose.connection.readyState !== 1) {
-        return res.status(503).json({ 
+        return res.status(503).json({
             error: 'Database connection is not ready.',
-            details: 'Please check if your IP is whitelisted in MongoDB Atlas (Network Access tab).' 
+            details: 'Please check if your IP is whitelisted in MongoDB Atlas (Network Access tab).'
         });
     }
     next();
@@ -127,7 +127,7 @@ const server = http.createServer(app);
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false, 
+    secure: false,
     auth: {
         user: process.env.EMAIL_USER || 'ms9409621877@gmail.com',
         pass: process.env.EMAIL_PASS || 'mgsi pvoz ohxw pixb'
@@ -256,7 +256,7 @@ app.post('/api/update-score', async (req, res) => {
     try {
         const { playerName, score } = req.body;
         if (!playerName) return res.status(400).json({ error: 'Player name is required' });
-        
+
         await Score.create({ playerName, score });
         const user = await User.findOneAndUpdate(
             { name: playerName },
@@ -273,14 +273,14 @@ app.post('/api/update-score', async (req, res) => {
 app.get('/api/admin/users', async (req, res) => {
     try {
         const users = await User.find().select('-password');
-        
+
         // Also find unique players from Score collection who might not have a User record
         const scores = await Score.aggregate([
             { $group: { _id: "$playerName", totalScore: { $sum: "$score" }, lastPlayed: { $max: "$date" }, count: { $sum: 1 } } }
         ]);
 
         const students = [...users];
-        
+
         // Merge score-only players
         scores.forEach(s => {
             if (!students.find(u => u.name === s._id)) {
@@ -295,6 +295,25 @@ app.get('/api/admin/users', async (req, res) => {
         });
 
         res.json(students);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/admin/users/:id', async (req, res) => {
+    try {
+        await User.findByIdAndDelete(req.params.id);
+        res.json({ message: 'User deleted' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/admin/users/:id', async (req, res) => {
+    try {
+        const { totalScore, gamesPlayed } = req.body;
+        const user = await User.findByIdAndUpdate(req.params.id, { totalScore, gamesPlayed }, { new: true }).select('-password');
+        res.json(user);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -349,13 +368,14 @@ const rooms = {};
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('joinRoom', ({ roomId, playerName, team }) => {
+    socket.on('joinRoom', ({ roomId, playerName, team, gameType = 'endless' }) => {
         socket.join(roomId);
         if (!rooms[roomId]) {
             rooms[roomId] = {
                 scores: { Red: 0, Blue: 0 },
                 players: [],
-                status: 'waiting'
+                status: 'waiting',
+                gameType: gameType
             };
         }
 
@@ -370,10 +390,11 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('roomUpdate', rooms[roomId]);
     });
 
-    socket.on('startGame', ({ roomId }) => {
+    socket.on('startGame', ({ roomId, gameType }) => {
         if (rooms[roomId]) {
             rooms[roomId].status = 'playing';
-            io.to(roomId).emit('multiplayerStart');
+            if (gameType) rooms[roomId].gameType = gameType;
+            io.to(roomId).emit('multiplayerStart', { gameType: rooms[roomId].gameType });
         }
     });
 

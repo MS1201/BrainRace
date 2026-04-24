@@ -18,6 +18,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
     const [fuelWarningShown, setFuelWarningShown] = useState(false);
     const [answerFeedback, setAnswerFeedback] = useState(null); 
     const [opponents, setOpponents] = useState({});
+    const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
     const scoreRef = useRef(0);
 
     useEffect(() => { scoreRef.current = score; }, [score]);
@@ -37,7 +38,20 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                 setOpponents(prev => ({ ...prev, [data.id]: data }));
             }
         });
-        return () => socket.off('opponentUpdate');
+
+        socket.on('scoreUpdate', (scores) => {
+            setTeamScores(scores);
+        });
+
+        socket.on('gameOver', ({ winner }) => {
+            setGameState('finished');
+        });
+
+        return () => {
+            socket.off('opponentUpdate');
+            socket.off('scoreUpdate');
+            socket.off('gameOver');
+        };
     }, [socket]);
 
     const getNextQuestion = () => {
@@ -99,6 +113,14 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                     hit.hit = true;
                     if (hit.type === 'coin') {
                         setScore(s => s + 500);
+                        if (socket && multiplayerData?.roomId) {
+                            socket.emit('submitAnswer', {
+                                roomId: multiplayerData.roomId,
+                                isCorrect: true,
+                                team: multiplayerData.team,
+                                points: 5
+                            });
+                        }
                     } else if (hit.type === 'fuel_can') {
                         setFuel(f => Math.min(100, f + 30));
                     } else if (hit.type === 'enemy') {
@@ -129,7 +151,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
 
         }, 50);
         return () => clearInterval(interval);
-    }, [gameState, carLane, fuelWarningShown, questions, socket]);
+    }, [gameState, carLane, fuelWarningShown, questions, socket, multiplayerData]);
 
     // Keyboard controls
     useEffect(() => {
@@ -156,6 +178,16 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
         const isCorrect = option === currentQuestion.correct;
         if (isCorrect) {
             setAnswerFeedback('correct');
+
+            if (socket && multiplayerData?.roomId) {
+                socket.emit('submitAnswer', {
+                    roomId: multiplayerData.roomId,
+                    isCorrect: true,
+                    team: multiplayerData.team,
+                    points: 50
+                });
+            }
+
             setTimeout(() => {
                 setFuel(100); // Refuel completely on correct answer
                 setScore(s => s + 1000);
@@ -211,6 +243,46 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
             }}>
                 <ChevronLeft size={18} /> Back
             </button>
+
+            {/* Team Progress HUD (Multiplayer) */}
+            {multiplayerData && (
+                <div style={{
+                    position: 'fixed', top: '24px', right: '24px', zIndex: 100,
+                    display: 'flex', flexDirection: 'column', gap: '10px',
+                    width: '200px', background: 'rgba(255,255,255,0.05)',
+                    backdropFilter: 'blur(20px)', borderRadius: '24px',
+                    padding: '20px', border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 900, color: 'rgba(255,255,255,0.4)', letterSpacing: '2px' }}>TEAM PROGRESS</span>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 10px #4ade80' }} />
+                    </div>
+                    
+                    <div style={{ spaceY: '12px' }}>
+                        {/* Red Team */}
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 900, color: '#ef4444', marginBottom: '4px' }}>
+                                <span>RED TEAM</span>
+                                <span>{teamScores.Red} / 200</span>
+                            </div>
+                            <div style={{ height: '6px', background: 'rgba(239,68,68,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <motion.div animate={{ width: `${(teamScores.Red / 200) * 100}%` }} style={{ height: '100%', background: '#ef4444', boxShadow: '0 0 10px rgba(239,68,68,0.5)' }} />
+                            </div>
+                        </div>
+
+                        {/* Blue Team */}
+                        <div style={{ marginTop: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 900, color: '#3b82f6', marginBottom: '4px' }}>
+                                <span>BLUE TEAM</span>
+                                <span>{teamScores.Blue} / 200</span>
+                            </div>
+                            <div style={{ height: '6px', background: 'rgba(59,130,246,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <motion.div animate={{ width: `${(teamScores.Blue / 200) * 100}%` }} style={{ height: '100%', background: '#3b82f6', boxShadow: '0 0 10px rgba(59,130,246,0.5)' }} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Game Canvas */}
             <div style={{

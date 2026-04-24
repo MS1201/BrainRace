@@ -21,6 +21,8 @@ const TeacherDashboard = ({ user, onBack }) => {
         difficulty: 'medium',
         points: 10 
     });
+    const [editingUser, setEditingUser] = useState(null);
+    const [editUserData, setEditUserData] = useState({ totalScore: 0, gamesPlayed: 0 });
 
     const fetchData = async () => {
         try {
@@ -89,6 +91,35 @@ const TeacherDashboard = ({ user, onBack }) => {
         } catch (err) {
             console.error("Delete question error:", err);
         }
+    };
+    
+    const handleDeleteUser = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this user?')) return;
+        try {
+            await fetch(`${API_BASE}/api/admin/users/${id}`, { method: 'DELETE' });
+            fetchData();
+        } catch (err) {
+            console.error("Delete user error:", err);
+        }
+    };
+
+    const handleUpdateUser = async (id) => {
+        try {
+            await fetch(`${API_BASE}/api/admin/users/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editUserData)
+            });
+            setEditingUser(null);
+            fetchData();
+        } catch (err) {
+            console.error("Update user error:", err);
+        }
+    };
+
+    const startEditingUser = (s) => {
+        setEditingUser(s._id);
+        setEditUserData({ totalScore: s.totalScore || 0, gamesPlayed: s.gamesPlayed || 0 });
     };
 
     const startEditing = (q) => {
@@ -340,6 +371,7 @@ const TeacherDashboard = ({ user, onBack }) => {
                                         <th style={{ textAlign: 'left', padding: '16px', color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>TOTAL XP</th>
                                         <th style={{ textAlign: 'left', padding: '16px', color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>GAMES</th>
                                         <th style={{ textAlign: 'left', padding: '16px', color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>ROLE</th>
+                                        <th style={{ textAlign: 'left', padding: '16px', color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>ACTIONS</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -349,8 +381,30 @@ const TeacherDashboard = ({ user, onBack }) => {
                                                 {s.name}
                                                 {s.isLegacy && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '2px 6px', borderRadius: '4px' }}>LEGACY</span>}
                                             </td>
-                                            <td style={{ padding: '16px', color: '#22d3ee', fontWeight: 800 }}>{s.totalScore || 0}</td>
-                                            <td style={{ padding: '16px' }}>{s.gamesPlayed || 0}</td>
+                                            <td style={{ padding: '16px', color: '#22d3ee', fontWeight: 800 }}>
+                                                {editingUser === s._id ? (
+                                                    <input 
+                                                        type="number" 
+                                                        value={editUserData.totalScore}
+                                                        onChange={e => setEditUserData({...editUserData, totalScore: parseInt(e.target.value)})}
+                                                        style={{ background: '#111', color: '#22d3ee', border: '1px solid #333', padding: '4px 8px', borderRadius: '4px', width: '80px' }}
+                                                    />
+                                                ) : (
+                                                    s.totalScore || 0
+                                                )}
+                                            </td>
+                                            <td style={{ padding: '16px' }}>
+                                                {editingUser === s._id ? (
+                                                    <input 
+                                                        type="number" 
+                                                        value={editUserData.gamesPlayed}
+                                                        onChange={e => setEditUserData({...editUserData, gamesPlayed: parseInt(e.target.value)})}
+                                                        style={{ background: '#111', color: '#fff', border: '1px solid #333', padding: '4px 8px', borderRadius: '4px', width: '60px' }}
+                                                    />
+                                                ) : (
+                                                    s.gamesPlayed || 0
+                                                )}
+                                            </td>
                                             <td style={{ padding: '16px' }}>
                                                 <span style={{ 
                                                     background: s.role === 'teacher' ? 'rgba(168,85,247,0.1)' : s.role === 'guest' ? 'rgba(255,255,255,0.05)' : 'rgba(34,211,238,0.1)', 
@@ -360,6 +414,28 @@ const TeacherDashboard = ({ user, onBack }) => {
                                                     fontSize: '12px', 
                                                     fontWeight: 700 
                                                 }}>{s.role}</span>
+                                            </td>
+                                            <td style={{ padding: '16px' }}>
+                                                <div style={{ display: 'flex', gap: '12px' }}>
+                                                    {editingUser === s._id ? (
+                                                        <>
+                                                            <button onClick={() => handleUpdateUser(s._id)} style={{ color: '#10b981', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '12px' }}>Save</button>
+                                                            <button onClick={() => setEditingUser(null)} style={{ color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '12px' }}>Cancel</button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {!s.isLegacy && <button onClick={() => startEditingUser(s)} style={{ color: '#22d3ee', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '12px' }}>Edit</button>}
+                                                            {!s.isLegacy && s.email !== user.email && (
+                                                                <button 
+                                                                    onClick={() => handleDeleteUser(s._id)}
+                                                                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 700, fontSize: '12px' }}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

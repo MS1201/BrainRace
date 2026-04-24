@@ -7,18 +7,27 @@ const Lobby = ({ onJoin, socket, user }) => {
     const [playerName, setPlayerName] = useState(user?.name || '');
     const [roomId, setRoomId] = useState('');
     const [team, setTeam] = useState('Red');
+    const [gameType, setGameType] = useState('endless');
     const [roomData, setRoomData] = useState(null);
+
+    const games = [
+        { id: 'endless', name: 'Endless Runner', emoji: '🏎️' },
+        { id: 'buddy', name: 'Brain Buddy', emoji: '🐘' },
+        { id: 'color', name: 'Color Match', emoji: '🎨' },
+        { id: 'math', name: 'Math Dash', emoji: '➕' },
+    ];
 
     useEffect(() => {
         if (!socket) return;
 
         socket.on('roomUpdate', (data) => {
             setRoomData(data);
+            if (data.gameType) setGameType(data.gameType);
             setPhase('waiting');
         });
 
-        socket.on('multiplayerStart', () => {
-            onJoin({ playerName, roomId, team });
+        socket.on('multiplayerStart', (data) => {
+            onJoin({ playerName, roomId, team, gameType: data.gameType });
         });
 
         return () => {
@@ -30,16 +39,17 @@ const Lobby = ({ onJoin, socket, user }) => {
     const handleJoinRequest = (e) => {
         e.preventDefault();
         if (!playerName || !roomId) return;
-        socket.emit('joinRoom', { playerName, roomId, team });
+        socket.emit('joinRoom', { playerName, roomId, team, gameType });
     };
 
     const handleStartGame = () => {
-        socket.emit('startGame', { roomId });
+        socket.emit('startGame', { roomId, gameType });
     };
 
     if (phase === 'waiting' && roomData) {
         const redTeam = roomData.players.filter(p => p.team === 'Red');
         const blueTeam = roomData.players.filter(p => p.team === 'Blue');
+        const currentGame = games.find(g => g.id === (roomData.gameType || gameType)) || games[0];
 
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -51,9 +61,12 @@ const Lobby = ({ onJoin, socket, user }) => {
                     {/* Team Selection / Lobby Info */}
                     <div className="bg-white rounded-[40px] p-10 shadow-xl border border-gray-100">
                         <div className="mb-10">
-                            <span className="px-4 py-1.5 rounded-full bg-violet-100 text-violet-600 text-xs font-black uppercase tracking-widest">Room ID: {roomId}</span>
+                            <div className="flex justify-between items-start">
+                                <span className="px-4 py-1.5 rounded-full bg-violet-100 text-violet-600 text-xs font-black uppercase tracking-widest">Room ID: {roomId}</span>
+                                <span className="text-2xl">{currentGame.emoji}</span>
+                            </div>
                             <h2 className="text-4xl font-black text-gray-900 mt-4 leading-tight">Ready for Battle?</h2>
-                            <p className="text-gray-500 font-medium mt-2">Wait for all racers to join or launch the race now.</p>
+                            <p className="text-gray-500 font-medium mt-2">Game: <span className="text-violet-600 font-bold">{currentGame.name}</span></p>
                         </div>
 
                         <div className="space-y-4 mb-10">
@@ -159,6 +172,19 @@ const Lobby = ({ onJoin, socket, user }) => {
                             className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-gray-900 rounded-3xl transition-all font-bold outline-none uppercase text-gray-900 placeholder:text-gray-300"
                             placeholder="e.g. SKY-RACER"
                         />
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block ml-1">Select Game</label>
+                        <select
+                            value={gameType}
+                            onChange={e => setGameType(e.target.value)}
+                            className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-gray-900 rounded-3xl transition-all font-bold outline-none text-gray-900"
+                        >
+                            {games.map(g => (
+                                <option key={g.id} value={g.id}>{g.emoji} {g.name}</option>
+                            ))}
+                        </select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

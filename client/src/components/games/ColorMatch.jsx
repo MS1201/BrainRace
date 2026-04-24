@@ -3,7 +3,33 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Timer, Trophy, Check, X, Palette, ArrowLeft } from 'lucide-react';
 import API_BASE from '../../config';
 
-const ColorMatch = ({ user, onBack }) => {
+const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
+    const [opponents, setOpponents] = useState({});
+    const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
+
+    useEffect(() => {
+        if (!socket) return;
+        socket.on('opponentUpdate', (data) => {
+            if (data.id !== socket?.id) {
+                setOpponents(prev => ({ ...prev, [data.id]: data }));
+            }
+        });
+
+        socket.on('scoreUpdate', (scores) => {
+            setTeamScores(scores);
+        });
+
+        socket.on('gameOver', ({ winner }) => {
+            setGameState('gameover');
+        });
+
+        return () => {
+            socket.off('opponentUpdate');
+            socket.off('scoreUpdate');
+            socket.off('gameOver');
+        };
+    }, [socket]);
+
     const saveScore = async (finalScore) => {
         if (!user) return;
         try {
@@ -54,6 +80,15 @@ const ColorMatch = ({ user, onBack }) => {
             setScore(s => s + 150);
             setFeedback({ type: 'correct', icon: <Check size={80} /> });
             setTimeLeft(t => Math.min(25, t + 1));
+
+            if (socket && multiplayerData?.roomId) {
+                socket.emit('submitAnswer', {
+                    roomId: multiplayerData.roomId,
+                    isCorrect: true,
+                    team: multiplayerData.team,
+                    points: 10
+                });
+            }
         } else {
             setFeedback({ type: 'wrong', icon: <X size={80} /> });
             setTimeLeft(t => Math.max(0, t - 3));
@@ -61,6 +96,20 @@ const ColorMatch = ({ user, onBack }) => {
         generatePair();
         setTimeout(() => setFeedback(null), 300);
     };
+
+    useEffect(() => {
+        if (gameState !== 'playing') return;
+
+        if (socket && multiplayerData?.roomId) {
+            socket.emit('playerUpdate', {
+                id: socket.id,
+                roomId: multiplayerData.roomId,
+                name: user?.name || 'Player',
+                score: score,
+                team: multiplayerData.team
+            });
+        }
+    }, [gameState, score, socket, multiplayerData]);
 
     useEffect(() => {
         let timer;
@@ -85,6 +134,33 @@ const ColorMatch = ({ user, onBack }) => {
             <button onClick={onBack} className="absolute top-8 left-8 z-50 p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-colors backdrop-blur-md group">
                 <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
             </button>
+
+            {/* Team Progress HUD (Multiplayer) */}
+            {multiplayerData && (
+                <div className="fixed top-8 right-8 z-100 w-48 bg-white/5 backdrop-blur-xl rounded-[32px] p-6 border border-white/10 shadow-2xl">
+                    <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 text-center">SYNERGY LEVELS</div>
+                    <div className="space-y-4">
+                        <div>
+                            <div className="flex justify-between text-[10px] font-black mb-1.5">
+                                <span className="text-rose-500">RED SQUAD</span>
+                                <span className="text-white">{teamScores.Red}</span>
+                            </div>
+                            <div className="h-1.5 bg-rose-500/10 rounded-full overflow-hidden">
+                                <motion.div animate={{ width: `${(teamScores.Red / 200) * 100}%` }} className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]" />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-[10px] font-black mb-1.5">
+                                <span className="text-cyan-400">BLUE SQUAD</span>
+                                <span className="text-white">{teamScores.Blue}</span>
+                            </div>
+                            <div className="h-1.5 bg-cyan-400/10 rounded-full overflow-hidden">
+                                <motion.div animate={{ width: `${(teamScores.Blue / 200) * 100}%` }} className="h-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="w-full max-w-lg relative z-10">
                 {gameState === 'start' ? (

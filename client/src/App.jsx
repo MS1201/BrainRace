@@ -33,8 +33,7 @@ function App() {
     const [view, setView] = useState(() => {
         const saved = localStorage.getItem('brainrace_user');
         if (saved) {
-            const u = JSON.parse(saved);
-            return u.role === 'teacher' ? 'teacherDashboard' : 'dashboard';
+            return 'teacherDashboard';
         }
         return 'landing';
     });
@@ -51,11 +50,7 @@ function App() {
     const handleAuth = (userData) => {
         setUser(userData);
         localStorage.setItem('brainrace_user', JSON.stringify(userData));
-        if (userData.role === 'teacher') {
-            setView('teacherDashboard');
-        } else {
-            setView('dashboard');
-        }
+        setView('teacherDashboard');
     };
 
     const handleLogout = () => {
@@ -134,7 +129,9 @@ function App() {
             multiplayerData,
         };
 
-        switch (gameMode) {
+        const targetMode = gameMode === 'multi' ? (multiplayerData?.gameType || 'endless') : gameMode;
+
+        switch (targetMode) {
             case 'endless': return <EndlessRunner {...commonProps} />;
             case 'neon':    return <NeonNexus {...commonProps} />;
             case 'math':    return <MathDash {...commonProps} />;
@@ -143,7 +140,6 @@ function App() {
             case 'color':   return <ColorMatch {...commonProps} />;
             case 'buddy':   return <BrainBuddy {...commonProps} />;
             case 'mathdrops': return <MathDrops {...commonProps} />;
-            case 'multi':   return <EndlessRunner {...commonProps} />;
             default:        return <DashboardNew user={user} onSelectMode={handleSelectMode} />;
         }
     };
