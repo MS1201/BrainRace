@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowLeft, Zap, Star, Clock, Check, X } from 'lucide-react';
+import API_BASE from '../../config';
 
 const IMAGE_EXTENSIONS = {
     'cheetah': 'jpeg',
@@ -196,9 +197,30 @@ const BrainBuddy = ({ user, onBack }) => {
     const timerRef = useRef(null);
 
     useEffect(() => {
-        // Shuffle questions
-        const shuffled = [...VISUAL_QUESTIONS].sort(() => Math.random() - 0.5);
-        setQuestions(shuffled);
+        const fetchQuestions = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/api/questions?gameType=brain-buddy`);
+                const data = await res.json();
+                const gameSpecific = data.filter(q => q.gameType === 'brain-buddy');
+                
+                if (gameSpecific.length > 0) {
+                    // Format backend questions to match frontend structure
+                    const formatted = gameSpecific.map(q => ({
+                        question: q.questionText,
+                        options: q.options.map(opt => ({ label: opt, emoji: '❓' })),
+                        correct: q.correctAnswer,
+                        explanation: `The correct answer is ${q.correctAnswer}!`
+                    }));
+                    setQuestions(formatted.sort(() => Math.random() - 0.5));
+                } else {
+                    setQuestions([...VISUAL_QUESTIONS].sort(() => Math.random() - 0.5));
+                }
+            } catch (err) {
+                console.error("Failed to fetch questions:", err);
+                setQuestions([...VISUAL_QUESTIONS].sort(() => Math.random() - 0.5));
+            }
+        };
+        fetchQuestions();
     }, []);
 
     useEffect(() => {
@@ -265,7 +287,7 @@ const BrainBuddy = ({ user, onBack }) => {
 
     const saveScore = async (finalScore) => {
         try {
-            await fetch('http://127.0.0.1:3001/api/update-score', {
+            await fetch(`${API_BASE}/api/update-score`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ playerName: user?.name, score: finalScore })

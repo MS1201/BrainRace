@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Activity, Shield, ArrowLeft, RefreshCw, Check } from 'lucide-react';
+import API_BASE from '../../config';
 
 const LogicFlow = ({ user, onBack }) => {
     const [gameState, setGameState] = useState('lobby');
@@ -111,6 +112,25 @@ const LogicFlow = ({ user, onBack }) => {
             setTimeout(() => setGameState('finished'), 1500);
         }
     };
+
+    // Save score to backend when game finishes
+    useEffect(() => {
+        if (gameState === 'finished' && score > 0 && user?.name) {
+            const saveScore = async () => {
+                try {
+                    await fetch(`${API_BASE}/api/update-score`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ playerName: user.name, score: score })
+                    });
+                    console.log("Score saved successfully");
+                } catch (err) {
+                    console.error("Failed to save score:", err);
+                }
+            };
+            saveScore();
+        }
+    }, [gameState, score, user?.name]);
 
     const handleStart = () => {
         setScore(0);

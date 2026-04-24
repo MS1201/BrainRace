@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Trophy, Zap, Clock, ArrowLeft } from 'lucide-react';
+import API_BASE from '../../config';
 
 // Geometric shapes for tiles
 const SHAPES = ['triangle', 'hexagon', 'circle', 'diamond'];
@@ -19,7 +20,7 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
     const saveScore = async (finalScore) => {
         if (!user) return;
         try {
-            await fetch('http://127.0.0.1:3001/api/update-score', {
+            await fetch(`${API_BASE}/api/update-score`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ playerName: user.name, score: finalScore })

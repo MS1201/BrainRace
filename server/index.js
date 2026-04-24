@@ -43,14 +43,16 @@ const UserSchema = new mongoose.Schema({
     totalScore: { type: Number, default: 0 },
     gamesPlayed: { type: Number, default: 0 },
     otp: { type: String },
-    otpExpires: { type: Date }
+    otpExpires: { type: Date },
+    role: { type: String, enum: ['student', 'teacher', 'admin'], default: 'student' }
 });
 
 // Pre-save hook to hash password
-UserSchema.pre('save', async function () {
-    if (!this.isModified('password')) return;
+UserSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) return next();
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    next();
 });
 
 // Method to compare password
@@ -59,6 +61,18 @@ UserSchema.methods.comparePassword = async function (candidatePassword) {
 };
 
 const User = mongoose.model('User', UserSchema);
+
+// Question Schema
+const QuestionSchema = new mongoose.Schema({
+    gameType: { type: String, required: true }, // e.g., 'logic-flow', 'memory-matrix'
+    questionText: String,
+    options: [String],
+    correctAnswer: mongoose.Schema.Types.Mixed,
+    difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' },
+    points: { type: Number, default: 10 }
+});
+
+const Question = mongoose.model('Question', QuestionSchema);
 
 
 const app = express();
@@ -241,6 +255,8 @@ app.get('/api/leaderboard', async (req, res) => {
 app.post('/api/update-score', async (req, res) => {
     try {
         const { playerName, score } = req.body;
+        if (!playerName) return res.status(400).json({ error: 'Player name is required' });
+        
         await Score.create({ playerName, score });
         const user = await User.findOneAndUpdate(
             { name: playerName },
@@ -248,6 +264,53 @@ app.post('/api/update-score', async (req, res) => {
             { new: true }
         );
         res.json(user);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin/Teacher Routes
+app.get('/api/admin/users', async (req, res) => {
+    try {
+        const users = await User.find().select('-password');
+        res.json(users);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Question Management Routes
+app.get('/api/questions', async (req, res) => {
+    try {
+        const questions = await Question.find();
+        res.json(questions);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/questions', async (req, res) => {
+    try {
+        const question = await Question.create(req.body);
+        res.status(201).json(question);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/questions/:id', async (req, res) => {
+    try {
+        const question = await Question.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json(question);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/questions/:id', async (req, res) => {
+    try {
+        await Question.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Question deleted' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Zap, Trophy, ArrowLeft, RefreshCcw, Sparkles } from 'lucide-react';
+import API_BASE from '../../config';
 
 const MemoryMatrix = ({ user, onBack, socket }) => {
     const [gameState, setGameState] = useState('lobby'); // lobby, playing, flashing, finished
@@ -59,6 +60,25 @@ const MemoryMatrix = ({ user, onBack, socket }) => {
             }
         }
     }, [userInput, sequence, gameState, level, gridSize]);
+
+    // Save score to backend when game finishes
+    useEffect(() => {
+        if (gameState === 'finished' && score > 0 && user?.name) {
+            const saveScore = async () => {
+                try {
+                    await fetch(`${API_BASE}/api/update-score`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ playerName: user.name, score: score })
+                    });
+                    console.log("Score saved successfully");
+                } catch (err) {
+                    console.error("Failed to save score:", err);
+                }
+            };
+            saveScore();
+        }
+    }, [gameState, score, user?.name]);
 
 
 

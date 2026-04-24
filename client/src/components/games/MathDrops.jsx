@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Heart, X, Timer } from 'lucide-react';
+import API_BASE from '../../config';
 
 /* ─── Level Config ─────────────────────────────────────────────── */
 const LEVELS = {
@@ -183,6 +184,17 @@ export default function MathDrops({ user, onBack }) {
     const [timeLeft, setTimeLeft] = useState(90);
     const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem('mdhigh') || '0'));
 
+    const saveScore = async (finalScore) => {
+        if (!user) return;
+        try {
+            await fetch(`${API_BASE}/api/update-score`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ playerName: user.name, score: finalScore })
+            });
+        } catch (e) { console.error(e); }
+    };
+
     const canvasRef = useRef(null);
     const rafRef = useRef(null);
     const gs = useRef({
@@ -203,6 +215,7 @@ export default function MathDrops({ user, onBack }) {
         setHighScore(hs);
         setScore(s.score);
         setTimeLeft(s.timeLeft);
+        saveScore(s.score);
         setPhase('over');
     }, []);
 
