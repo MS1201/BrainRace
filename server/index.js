@@ -16,7 +16,7 @@ console.log('Attempting to connect to MongoDB...');
 const maskedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
 console.log('Target:', maskedUri);
 
-mongoose.set('bufferCommands', false);
+// mongoose.set('bufferCommands', false); // Removed to avoid immediate crashes
 
 mongoose.connect(MONGO_URI, {
     serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
@@ -74,6 +74,18 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+
+// Middleware to check database connection
+app.use((req, res, next) => {
+    // Only check for API routes
+    if (req.path.startsWith('/api') && req.path !== '/api/health' && mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ 
+            error: 'Database connection is not ready.',
+            details: 'Please check if your IP is whitelisted in MongoDB Atlas (Network Access tab).' 
+        });
+    }
+    next();
+});
 
 // Health Check
 app.get('/api/health', (req, res) => {
