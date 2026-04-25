@@ -113,11 +113,7 @@ app.get('/api/health', (req, res) => {
 if (process.env.NODE_ENV === 'production') {
     const path = require('path');
     app.use(express.static(path.join(__dirname, '../client/dist')));
-    app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api')) {
-            res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-        }
-    });
+    // NOTE: the SPA catch-all is registered AFTER all API routes (see bottom of file)
 }
 
 const server = http.createServer(app);
@@ -451,6 +447,16 @@ io.on('connection', (socket) => {
         }
     });
 });
+
+// SPA catch-all: serve index.html for all non-API GET routes in production.
+// IMPORTANT: This MUST be registered after all API routes so it doesn't intercept them.
+if (process.env.NODE_ENV === 'production') {
+    const path = require('path');
+    app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api')) return next();
+        res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+    });
+}
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
