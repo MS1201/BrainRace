@@ -33,7 +33,12 @@ function App() {
     const [view, setView] = useState(() => {
         const saved = localStorage.getItem('brainrace_user');
         if (saved) {
-            return 'teacherDashboard';
+            try {
+                const parsed = JSON.parse(saved);
+                return parsed?.role === 'teacher' ? 'teacherDashboard' : 'dashboard';
+            } catch {
+                return 'landing';
+            }
         }
         return 'landing';
     });
@@ -50,7 +55,8 @@ function App() {
     const handleAuth = (userData) => {
         setUser(userData);
         localStorage.setItem('brainrace_user', JSON.stringify(userData));
-        setView('teacherDashboard');
+        // Only teachers go to the Teacher Dashboard; all other users go to the gaming dashboard
+        setView(userData?.role === 'teacher' ? 'teacherDashboard' : 'dashboard');
     };
 
     const handleLogout = () => {
