@@ -182,7 +182,7 @@ const VISUAL_QUESTIONS = [
     },
 ];
 
-const BrainBuddy = ({ user, onBack }) => {
+const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
     const [gameState, setGameState] = useState('lobby'); // lobby, playing, finished
     const [questions, setQuestions] = useState([]);
     const [currentIdx, setCurrentIdx] = useState(0);

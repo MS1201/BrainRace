@@ -82,7 +82,7 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 app.use(cors({
-    origin: allowedOrigins,
+    origin: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
@@ -353,7 +353,7 @@ app.delete('/api/questions/:id', async (req, res) => {
 
 const io = new Server(server, {
     cors: {
-        origin: allowedOrigins,
+        origin: true,
         methods: ["GET", "POST"]
     }
 });
