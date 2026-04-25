@@ -12,6 +12,7 @@ const TeacherDashboard = ({ user, onBack }) => {
     const [questions, setQuestions] = useState([]);
     const [showQuestionEditor, setShowQuestionEditor] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
     const [editingQuestion, setEditingQuestion] = useState(null);
     const [newQuestion, setNewQuestion] = useState({ 
         gameType: 'logic-flow', 
@@ -27,12 +28,18 @@ const TeacherDashboard = ({ user, onBack }) => {
     const fetchData = async () => {
         try {
             setLoading(true);
+            setFetchError(null);
+
             const userRes = await fetch(`${API_BASE}/api/admin/users`);
+            if (!userRes.ok) {
+                const errData = await userRes.json().catch(() => ({}));
+                throw new Error(errData.error || errData.details || `Server error ${userRes.status}`);
+            }
             const students = await userRes.json();
             
             if (!Array.isArray(students)) {
                 console.error("Expected array of students, got:", students);
-                setStats(prev => ({ ...prev, students: [] }));
+                throw new Error('Unexpected response format from server.');
             } else {
                 setStats({
                     totalUsers: students.length,
@@ -47,6 +54,7 @@ const TeacherDashboard = ({ user, onBack }) => {
             if (Array.isArray(qs)) setQuestions(qs);
         } catch (err) {
             console.error("Dashboard fetch error:", err);
+            setFetchError(err.message || 'Failed to load data. Check server connection.');
         } finally {
             setLoading(false);
         }
@@ -375,6 +383,31 @@ const TeacherDashboard = ({ user, onBack }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    {loading && (
+                                        <tr>
+                                            <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
+                                                ⏳ Loading users...
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {!loading && fetchError && (
+                                        <tr>
+                                            <td colSpan={5} style={{ padding: '32px', textAlign: 'center' }}>
+                                                <div style={{ color: '#ef4444', fontWeight: 700, marginBottom: '12px' }}>⚠️ {fetchError}</div>
+                                                <button
+                                                    onClick={fetchData}
+                                                    style={{ background: '#22d3ee', color: '#000', border: 'none', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}
+                                                >Retry</button>
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {!loading && !fetchError && stats.students.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
+                                                No registered users found yet.
+                                            </td>
+                                        </tr>
+                                    )}
                                     {stats.students.map((s, i) => (
                                         <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                             <td style={{ padding: '16px', fontWeight: 600 }}>
