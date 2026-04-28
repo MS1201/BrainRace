@@ -39,32 +39,8 @@ BrainRace is a premium, high-performance brain-training platform featuring a sui
   - `EMAIL_USER`: Your Gmail address for sending OTPs.
   - `EMAIL_PASS`: Your Gmail App Password.
 
-## 🔑 Admin Credentials
-- **Email**: `mukulsharma22@gnu.ac.in`
-- **Password**: `Admin@1234`
 
-## 📦 Installation
 
-1. **Clone the repository**:
-   ```bash
-   git clone <your-repo-url>
-   cd BrainRace
-   ```
 
-2. **Frontend Setup**:
-   ```bash
-   cd client
-   npm install
-   npm start
-   ```
-
-3. **Backend Setup**:
-   ```bash
-   cd ../server
-   npm install
-   npm start
-   ```
-
-## 📝 License
 
 This project is licensed under the MIT License.
