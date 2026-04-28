@@ -380,9 +380,15 @@ io.on('connection', (socket) => {
             rooms[roomId].players.push({ id: socket.id, playerName, team });
         } else {
             existingPlayer.id = socket.id;
+            existingPlayer.team = team; // Update team if changed
         }
 
-        io.to(roomId).emit('roomUpdate', rooms[roomId]);
+        // Send current room state to the newly joined player
+        socket.emit('roomUpdate', rooms[roomId]);
+        socket.emit('scoreUpdate', rooms[roomId].scores);
+        
+        // Notify others
+        socket.to(roomId).emit('roomUpdate', rooms[roomId]);
     });
 
     socket.on('startGame', ({ roomId, gameType }) => {

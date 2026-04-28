@@ -62,7 +62,7 @@ const AuthPages = ({ onAuth }) => {
             const data = await response.json();
             if (response.ok) {
                 if (isLogin || isOtpMode) {
-                    onAuth(data);
+                    onAuth({ ...data, loginTime: Date.now() });
                 } else {
                     setIsLogin(true);
                     setPassword('');

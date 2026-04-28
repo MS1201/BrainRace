@@ -52,11 +52,24 @@ function App() {
         return () => s.disconnect();
     }, []);
 
+    const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
+
+    useEffect(() => {
+        if (user && user.loginTime) {
+            const now = Date.now();
+            if (now - user.loginTime > SESSION_TIMEOUT) {
+                handleLogout();
+                alert("Session expired. Please login again.");
+            }
+        }
+    }, [user]);
+
     const handleAuth = (userData) => {
-        setUser(userData);
-        localStorage.setItem('brainrace_user', JSON.stringify(userData));
+        const dataWithTime = { ...userData, loginTime: userData.loginTime || Date.now() };
+        setUser(dataWithTime);
+        localStorage.setItem('brainrace_user', JSON.stringify(dataWithTime));
         // Only teachers go to the Teacher Dashboard; all other users go to the gaming dashboard
-        setView(userData?.role === 'teacher' ? 'teacherDashboard' : 'dashboard');
+        setView(dataWithTime?.role === 'teacher' ? 'teacherDashboard' : 'dashboard');
     };
 
     const handleLogout = () => {

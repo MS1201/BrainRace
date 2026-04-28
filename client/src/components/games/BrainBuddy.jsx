@@ -241,9 +241,15 @@ const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
             setGameState('finished');
         });
 
+        socket.on('roomUpdate', (room) => {
+            if (room.scores) setTeamScores(room.scores);
+            if (room.status === 'finished') setGameState('finished');
+        });
+
         return () => {
             socket.off('opponentUpdate');
             socket.off('scoreUpdate');
+            socket.off('roomUpdate');
             socket.off('gameOver');
         };
     }, [socket]);

@@ -24,6 +24,11 @@ const Lobby = ({ onJoin, socket, user }) => {
             setRoomData(data);
             if (data.gameType) setGameType(data.gameType);
             setPhase('waiting');
+            
+            // Auto-join if game already started
+            if (data.status === 'playing') {
+                onJoin({ playerName, roomId, team, gameType: data.gameType || gameType });
+            }
         });
 
         socket.on('multiplayerStart', (data) => {
