@@ -12,14 +12,11 @@ const crypto = require('crypto');
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://ms9409621877:Mukul_%401201@cluster0.l0eloyz.mongodb.net/BrainRace?appName=Cluster0';
 
 console.log('Attempting to connect to MongoDB...');
-// Mask password in logs
 const maskedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
 console.log('Target:', maskedUri);
 
-// mongoose.set('bufferCommands', false); // Removed to avoid immediate crashes
-
 mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+    serverSelectionTimeoutMS: 5000,
 })
     .then(() => console.log('✅ Connected to MongoDB Atlas!'))
     .catch(err => {
@@ -47,14 +44,12 @@ const UserSchema = new mongoose.Schema({
     role: { type: String, enum: ['student', 'teacher', 'admin'], default: 'student' }
 });
 
-// Pre-save hook to hash password
 UserSchema.pre('save', async function () {
     if (!this.isModified('password')) return;
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Method to compare password
 UserSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
@@ -63,7 +58,7 @@ const User = mongoose.model('User', UserSchema);
 
 // Question Schema
 const QuestionSchema = new mongoose.Schema({
-    gameType: { type: String, required: true }, // e.g., 'logic-flow', 'memory-matrix'
+    gameType: { type: String, required: true },
     questionText: String,
     options: [String],
     correctAnswer: mongoose.Schema.Types.Mixed,
@@ -75,11 +70,6 @@ const Question = mongoose.model('Question', QuestionSchema);
 
 
 const app = express();
-const allowedOrigins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    process.env.FRONTEND_URL
-].filter(Boolean);
 
 app.use(cors({
     origin: true,
@@ -90,7 +80,6 @@ app.use(express.json());
 
 // Middleware to check database connection
 app.use((req, res, next) => {
-    // Only check for API routes
     if (req.path.startsWith('/api') && req.path !== '/api/health' && mongoose.connection.readyState !== 1) {
         return res.status(503).json({
             error: 'Database connection is not ready.',
@@ -109,32 +98,34 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Serve static files from the client/dist folder in production
 if (process.env.NODE_ENV === 'production') {
     const path = require('path');
     app.use(express.static(path.join(__dirname, '../client/dist')));
-    // NOTE: the SPA catch-all is registered AFTER all API routes (see bottom of file)
 }
 
 const server = http.createServer(app);
 
-// Nodemailer Config — use 'service' shorthand so nodemailer resolves host/port/TLS itself
+// ✅ FIX 1: Remove spaces from App Password
 const EMAIL_USER = process.env.EMAIL_USER || 'ms9409621877@gmail.com';
-const EMAIL_PASS = (process.env.EMAIL_PASS || 'mjhl keos mwgg snid').replace(/\s+/g, '');
+const EMAIL_PASS = (process.env.EMAIL_PASS || 'mjhlkeosmwggsnid').replace(/\s/g, ''); // strip spaces just in case
 
 console.log('📧 Email config — user:', EMAIL_USER, '| pass length:', EMAIL_PASS.length);
 
+// ✅ FIX 2: Use port 587 + STARTTLS (more reliable than 465 on most hosting)
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,      // false = STARTTLS on port 587
+    requireTLS: true,   // force upgrade to TLS
     auth: {
         user: EMAIL_USER,
         pass: EMAIL_PASS
     },
-    logger: true,
-    debug: true,
     connectionTimeout: 15000,
     greetingTimeout: 15000,
     socketTimeout: 20000,
+    logger: false,
+    debug: false
 });
 
 // Verify SMTP connection at startup
@@ -142,8 +133,7 @@ transporter.verify()
     .then(() => console.log('✅ SMTP server is ready to send emails'))
     .catch(err => {
         console.error('❌ SMTP verification failed:', err.message);
-        console.error('   Full error:', JSON.stringify(err, null, 2));
-        console.log('👉 ACTION REQUIRED: Make sure EMAIL_PASS is a valid Gmail App Password (not your account password).');
+        console.log('👉 ACTION REQUIRED: Make sure EMAIL_PASS is a valid Gmail App Password (no spaces, 16 chars).');
         console.log('   Generate one at: https://myaccount.google.com/apppasswords');
     });
 
@@ -153,9 +143,9 @@ app.get('/api/email-health', async (req, res) => {
         await transporter.verify();
         res.json({ status: 'ok', message: 'SMTP connection verified', user: EMAIL_USER });
     } catch (err) {
-        res.status(500).json({ 
-            status: 'error', 
-            message: err.message, 
+        res.status(500).json({
+            status: 'error',
+            message: err.message,
             code: err.code,
             user: EMAIL_USER
         });
@@ -199,16 +189,19 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// ✅ FIX 3: Robust OTP route with detailed error handling
 app.post('/api/request-otp', async (req, res) => {
     try {
         let { email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
         email = email.trim().toLowerCase();
+
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ error: 'User not found with this email' });
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
         // Use updateOne to avoid triggering the pre-save password hash hook
         await User.updateOne({ email }, { $set: { otp, otpExpires } });
 
@@ -229,24 +222,27 @@ app.post('/api/request-otp', async (req, res) => {
             `
         };
 
-        console.log(`📨 Attempting to send OTP to: ${email}...`);
+        // ✅ FIX 4: Await sendMail and capture result
         const info = await transporter.sendMail(mailOptions);
-        console.log('✅ OTP sent successfully:', info.messageId);
+        console.log('✅ OTP email sent:', info.messageId, '→', email);
+
         res.json({ message: 'OTP sent to your email' });
     } catch (err) {
-        console.error('OTP Send Error:', err.message);
-        console.error('OTP Full Error:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
-        
+        console.error('❌ OTP Send Error — code:', err.code, '| message:', err.message);
+
         let userMessage = 'Failed to send OTP. ';
         if (err.code === 'EAUTH') {
-            userMessage += 'Email authentication failed. The app password may be invalid or expired.';
-        } else if (err.code === 'ESOCKET' || err.code === 'ECONNECTION') {
+            userMessage += 'Email authentication failed. The Gmail App Password is invalid or expired. Generate a new one at https://myaccount.google.com/apppasswords';
+        } else if (err.code === 'ESOCKET' || err.code === 'ECONNECTION' || err.code === 'ECONNREFUSED') {
             userMessage += 'Could not connect to email server. Please try again later.';
         } else if (err.code === 'ETIMEDOUT') {
             userMessage += 'Email server timed out. Please try again.';
+        } else if (err.responseCode === 535) {
+            userMessage += 'Gmail authentication error (535). Make sure you are using an App Password, not your Gmail account password.';
         } else {
-            userMessage += 'Please try again later.';
+            userMessage += `Please try again later. (${err.code || err.message})`;
         }
+
         res.status(500).json({ error: userMessage });
     }
 });
@@ -280,8 +276,6 @@ app.post('/api/verify-otp', async (req, res) => {
 });
 
 
-
-
 app.get('/api/user/:name', async (req, res) => {
     try {
         const user = await User.findOne({ name: req.params.name }).select('-password');
@@ -300,7 +294,6 @@ app.get('/api/leaderboard', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
 
 app.post('/api/update-score', async (req, res) => {
     try {
@@ -324,14 +317,12 @@ app.get('/api/admin/users', async (req, res) => {
     try {
         const users = await User.find().select('-password');
 
-        // Also find unique players from Score collection who might not have a User record
         const scores = await Score.aggregate([
             { $group: { _id: "$playerName", totalScore: { $sum: "$score" }, lastPlayed: { $max: "$date" }, count: { $sum: 1 } } }
         ]);
 
         const students = [...users];
 
-        // Merge score-only players
         scores.forEach(s => {
             if (!students.find(u => u.name === s._id)) {
                 students.push({
@@ -429,20 +420,16 @@ io.on('connection', (socket) => {
             };
         }
 
-        // Avoid duplicate players if they reconnect
         const existingPlayer = rooms[roomId].players.find(p => p.playerName === playerName);
         if (!existingPlayer) {
             rooms[roomId].players.push({ id: socket.id, playerName, team });
         } else {
             existingPlayer.id = socket.id;
-            existingPlayer.team = team; // Update team if changed
+            existingPlayer.team = team;
         }
 
-        // Send current room state to the newly joined player
         socket.emit('roomUpdate', rooms[roomId]);
         socket.emit('scoreUpdate', rooms[roomId].scores);
-        
-        // Notify others
         socket.to(roomId).emit('roomUpdate', rooms[roomId]);
     });
 
@@ -459,17 +446,13 @@ io.on('connection', (socket) => {
             rooms[roomId].scores[team] += points;
             io.to(roomId).emit('scoreUpdate', rooms[roomId].scores);
 
-            if (rooms[roomId].scores[team] >= 200) { // Increased limit for longer games
+            if (rooms[roomId].scores[team] >= 200) {
                 io.to(roomId).emit('gameOver', { winner: team });
 
-                // Save scores to MongoDB
                 rooms[roomId].players.forEach(async (p) => {
                     try {
                         const finalScore = rooms[roomId].scores[p.team];
-                        await Score.create({
-                            playerName: p.playerName,
-                            score: finalScore
-                        });
+                        await Score.create({ playerName: p.playerName, score: finalScore });
                         await User.findOneAndUpdate(
                             { name: p.playerName },
                             { $inc: { totalScore: finalScore, gamesPlayed: 1 } }
@@ -486,7 +469,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('playerUpdate', (data) => {
-        // Broadcast player state to others in the same room
         if (data.roomId) {
             socket.to(data.roomId).emit('opponentUpdate', {
                 id: socket.id,
@@ -497,7 +479,6 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
-        // Clean up empty rooms or remove players
         for (const roomId in rooms) {
             rooms[roomId].players = rooms[roomId].players.filter(p => p.id !== socket.id);
             if (rooms[roomId].players.length === 0) {
@@ -509,8 +490,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// SPA catch-all: serve index.html for all non-API GET routes in production.
-// IMPORTANT: This MUST be registered after all API routes so it doesn't intercept them.
+// SPA catch-all — MUST be after all API routes
 if (process.env.NODE_ENV === 'production') {
     const path = require('path');
     app.get('*', (req, res, next) => {
