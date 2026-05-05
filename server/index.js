@@ -107,16 +107,13 @@ const server = http.createServer(app);
 
 // ✅ FIX 1: Remove spaces from App Password
 const EMAIL_USER = process.env.EMAIL_USER || 'ms9409621877@gmail.com';
-const EMAIL_PASS = (process.env.EMAIL_PASS || 'mjhlkeosmwggsnid').replace(/\s/g, ''); // strip spaces just in case
+const EMAIL_PASS = (process.env.EMAIL_PASS || 'ndwsyudprflxgrxj').replace(/\s/g, ''); // strip spaces just in case
 
 console.log('📧 Email config — user:', EMAIL_USER, '| pass length:', EMAIL_PASS.length);
 
 // ✅ FIX 2: Use port 587 + STARTTLS (more reliable than 465 on most hosting)
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,      // false = STARTTLS on port 587
-    requireTLS: true,   // force upgrade to TLS
+    service: 'gmail',
     auth: {
         user: EMAIL_USER,
         pass: EMAIL_PASS
@@ -124,8 +121,8 @@ const transporter = nodemailer.createTransport({
     connectionTimeout: 15000,
     greetingTimeout: 15000,
     socketTimeout: 20000,
-    logger: false,
-    debug: false
+    logger: true,
+    debug: true
 });
 
 // Verify SMTP connection at startup
