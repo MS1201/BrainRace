@@ -120,18 +120,18 @@ const server = http.createServer(app);
 
 // Nodemailer Config — use 'service' shorthand so nodemailer resolves host/port/TLS itself
 const EMAIL_USER = process.env.EMAIL_USER || 'ms9409621877@gmail.com';
-const EMAIL_PASS = process.env.EMAIL_PASS || 'mjhl keos mwgg snid';
+const EMAIL_PASS = (process.env.EMAIL_PASS || 'mjhl keos mwgg snid').replace(/\s+/g, '');
 
 console.log('📧 Email config — user:', EMAIL_USER, '| pass length:', EMAIL_PASS.length);
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // use SSL
+    service: 'gmail',
     auth: {
         user: EMAIL_USER,
         pass: EMAIL_PASS
     },
+    logger: true,
+    debug: true,
     connectionTimeout: 15000,
     greetingTimeout: 15000,
     socketTimeout: 20000,
@@ -165,7 +165,9 @@ app.get('/api/email-health', async (req, res) => {
 // Auth Routes
 app.post('/api/signup', async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        let { name, email, password } = req.body;
+        if (!email) return res.status(400).json({ error: 'Email is required' });
+        email = email.trim().toLowerCase();
         const exists = await User.findOne({ email });
         if (exists) return res.status(400).json({ error: 'Email already exists' });
 
@@ -180,7 +182,9 @@ app.post('/api/signup', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        let { email, password } = req.body;
+        if (!email) return res.status(400).json({ error: 'Email is required' });
+        email = email.trim().toLowerCase();
         const user = await User.findOne({ email });
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -197,7 +201,9 @@ app.post('/api/login', async (req, res) => {
 
 app.post('/api/request-otp', async (req, res) => {
     try {
-        const { email } = req.body;
+        let { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'Email is required' });
+        email = email.trim().toLowerCase();
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ error: 'User not found with this email' });
 
@@ -223,7 +229,9 @@ app.post('/api/request-otp', async (req, res) => {
             `
         };
 
-        await transporter.sendMail(mailOptions);
+        console.log(`📨 Attempting to send OTP to: ${email}...`);
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ OTP sent successfully:', info.messageId);
         res.json({ message: 'OTP sent to your email' });
     } catch (err) {
         console.error('OTP Send Error:', err.message);
@@ -245,7 +253,9 @@ app.post('/api/request-otp', async (req, res) => {
 
 app.post('/api/verify-otp', async (req, res) => {
     try {
-        const { email, otp } = req.body;
+        let { email, otp } = req.body;
+        if (!email) return res.status(400).json({ error: 'Email is required' });
+        email = email.trim().toLowerCase();
         if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
 
         const user = await User.findOne({
