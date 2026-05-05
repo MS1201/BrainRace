@@ -120,7 +120,7 @@ const server = http.createServer(app);
 
 // Nodemailer Config — use 'service' shorthand so nodemailer resolves host/port/TLS itself
 const EMAIL_USER = process.env.EMAIL_USER || 'ms9409621877@gmail.com';
-const EMAIL_PASS = process.env.EMAIL_PASS || 'mgsi pvoz ohxw pixb';
+const EMAIL_PASS = process.env.EMAIL_PASS || 'mjhl keos mwgg snid';
 
 console.log('📧 Email config — user:', EMAIL_USER, '| pass length:', EMAIL_PASS.length);
 
