@@ -125,7 +125,9 @@ const EMAIL_PASS = process.env.EMAIL_PASS || 'mjhl keos mwgg snid';
 console.log('📧 Email config — user:', EMAIL_USER, '| pass length:', EMAIL_PASS.length);
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // use SSL
     auth: {
         user: EMAIL_USER,
         pass: EMAIL_PASS
