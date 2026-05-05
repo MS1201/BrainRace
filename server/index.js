@@ -126,8 +126,17 @@ const transporter = nodemailer.createTransport({
     auth: {
         user: process.env.EMAIL_USER || 'ms9409621877@gmail.com',
         pass: process.env.EMAIL_PASS || 'mgsi pvoz ohxw pixb'
-    }
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    tls: { rejectUnauthorized: false }
 });
+
+// Verify SMTP connection at startup
+transporter.verify()
+    .then(() => console.log('✅ SMTP server is ready to send emails'))
+    .catch(err => console.error('❌ SMTP verification failed:', err.message));
 
 // Auth Routes
 app.post('/api/signup', async (req, res) => {
