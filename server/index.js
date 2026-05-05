@@ -118,25 +118,47 @@ if (process.env.NODE_ENV === 'production') {
 
 const server = http.createServer(app);
 
-// Nodemailer Config
+// Nodemailer Config — use 'service' shorthand so nodemailer resolves host/port/TLS itself
+const EMAIL_USER = process.env.EMAIL_USER || 'ms9409621877@gmail.com';
+const EMAIL_PASS = process.env.EMAIL_PASS || 'mgsi pvoz ohxw pixb';
+
+console.log('📧 Email config — user:', EMAIL_USER, '| pass length:', EMAIL_PASS.length);
+
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER || 'ms9409621877@gmail.com',
-        pass: process.env.EMAIL_PASS || 'mgsi pvoz ohxw pixb'
+        user: EMAIL_USER,
+        pass: EMAIL_PASS
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-    tls: { rejectUnauthorized: false }
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
 });
 
 // Verify SMTP connection at startup
 transporter.verify()
     .then(() => console.log('✅ SMTP server is ready to send emails'))
-    .catch(err => console.error('❌ SMTP verification failed:', err.message));
+    .catch(err => {
+        console.error('❌ SMTP verification failed:', err.message);
+        console.error('   Full error:', JSON.stringify(err, null, 2));
+        console.log('👉 ACTION REQUIRED: Make sure EMAIL_PASS is a valid Gmail App Password (not your account password).');
+        console.log('   Generate one at: https://myaccount.google.com/apppasswords');
+    });
+
+// Email health check endpoint
+app.get('/api/email-health', async (req, res) => {
+    try {
+        await transporter.verify();
+        res.json({ status: 'ok', message: 'SMTP connection verified', user: EMAIL_USER });
+    } catch (err) {
+        res.status(500).json({ 
+            status: 'error', 
+            message: err.message, 
+            code: err.code,
+            user: EMAIL_USER
+        });
+    }
+});
 
 // Auth Routes
 app.post('/api/signup', async (req, res) => {
@@ -183,7 +205,7 @@ app.post('/api/request-otp', async (req, res) => {
         await User.updateOne({ email }, { $set: { otp, otpExpires } });
 
         const mailOptions = {
-            from: '"BrainRace Support" <ms9409621877@gmail.com>',
+            from: `"BrainRace Support" <${EMAIL_USER}>`,
             to: email,
             subject: 'Your BrainRace OTP Code',
             html: `
@@ -202,8 +224,20 @@ app.post('/api/request-otp', async (req, res) => {
         await transporter.sendMail(mailOptions);
         res.json({ message: 'OTP sent to your email' });
     } catch (err) {
-        console.error('OTP Send Error:', err);
-        res.status(500).json({ error: 'Failed to send OTP. Please check your email configuration.' });
+        console.error('OTP Send Error:', err.message);
+        console.error('OTP Full Error:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+        
+        let userMessage = 'Failed to send OTP. ';
+        if (err.code === 'EAUTH') {
+            userMessage += 'Email authentication failed. The app password may be invalid or expired.';
+        } else if (err.code === 'ESOCKET' || err.code === 'ECONNECTION') {
+            userMessage += 'Could not connect to email server. Please try again later.';
+        } else if (err.code === 'ETIMEDOUT') {
+            userMessage += 'Email server timed out. Please try again.';
+        } else {
+            userMessage += 'Please try again later.';
+        }
+        res.status(500).json({ error: userMessage });
     }
 });
 
