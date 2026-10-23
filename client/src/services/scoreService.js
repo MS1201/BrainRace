@@ -1,11 +1,16 @@
 import { useCallback, useRef } from 'react';
 import API_BASE from '../config';
 
-export const submitScore = async (playerName, score) => {
+export const submitScore = async (user, score) => {
     const response = await fetch(`${API_BASE}/api/update-score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerName, score })
+        body: JSON.stringify({
+            userId: user?._id,
+            email: user?.email,
+            playerName: user?.name,
+            score
+        })
     });
     const result = await response.json();
 
@@ -24,7 +29,7 @@ export const useScoreSubmission = (user) => {
     const sessionRef = useRef({ saved: false, pending: null });
 
     const saveScore = useCallback((score) => {
-        if (!user?.name || score <= 0) return Promise.resolve(true);
+        if ((!user?._id && !user?.email && !user?.name) || score <= 0) return Promise.resolve(true);
         if (!Number.isSafeInteger(score)) {
             console.error('Failed to save score: score must be a safe integer.');
             return Promise.resolve(false);
@@ -34,7 +39,7 @@ export const useScoreSubmission = (user) => {
         if (session.saved) return Promise.resolve(true);
         if (session.pending) return session.pending;
 
-        const pending = submitScore(user.name, score)
+        const pending = submitScore(user, score)
             .then(() => {
                 session.saved = true;
                 return true;
@@ -49,7 +54,7 @@ export const useScoreSubmission = (user) => {
 
         session.pending = pending;
         return pending;
-    }, [user?.name]);
+    }, [user?._id, user?.email, user?.name]);
 
     const resetScoreSubmission = useCallback(() => {
         sessionRef.current = { saved: false, pending: null };

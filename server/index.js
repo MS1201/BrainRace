@@ -306,21 +306,31 @@ app.get('/api/leaderboard', async (req, res) => {
 
 app.post('/api/update-score', async (req, res) => {
     try {
-        const { playerName, score } = req.body;
-        const normalizedPlayerName = typeof playerName === 'string' ? playerName.trim() : '';
-        if (!normalizedPlayerName) {
-            return res.status(400).json({ error: 'Player name is required' });
-        }
+        const { userId, email, playerName, score } = req.body;
         if (!Number.isSafeInteger(score) || score < 0) {
             return res.status(400).json({ error: 'Score must be a non-negative integer' });
         }
 
-        const existingUser = await User.findOne({ name: normalizedPlayerName }).select('_id');
+        const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+        const normalizedPlayerName = typeof playerName === 'string' ? playerName.trim() : '';
+        let existingUser = null;
+
+        if (typeof userId === 'string' && mongoose.isValidObjectId(userId)) {
+            existingUser = await User.findById(userId).select('_id name');
+        }
+        if (!existingUser && normalizedEmail) {
+            existingUser = await User.findOne({ email: normalizedEmail }).select('_id name');
+        }
+        if (!existingUser && !userId && !normalizedEmail && normalizedPlayerName) {
+            existingUser = await User.findOne({ name: normalizedPlayerName }).select('_id name');
+        }
         if (!existingUser) {
-            return res.status(404).json({ error: 'User not found for submitted score' });
+            return res.status(404).json({
+                error: 'Your account was not found in the configured database. Sign out and sign in again, and verify that Render MONGO_URI points to the database containing your account.'
+            });
         }
 
-        await Score.create({ playerName: normalizedPlayerName, score });
+        await Score.create({ playerName: existingUser.name, score });
         const user = await User.findByIdAndUpdate(
             existingUser._id,
             { $inc: { totalScore: score, gamesPlayed: 1 } },
