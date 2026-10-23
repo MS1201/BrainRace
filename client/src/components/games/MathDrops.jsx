@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Heart, X, Timer } from 'lucide-react';
-import { submitScore } from '../../services/scoreService';
+import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 /* ─── Level Config ─────────────────────────────────────────────── */
 const LEVELS = {
@@ -176,6 +176,7 @@ function TimerRing({ timeLeft, timeLimit, color }) {
 
 /* ─── Main Component ───────────────────────────────────────────── */
 export default function MathDrops({ user, onBack }) {
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
     const [phase, setPhase] = useState('menu');      // menu | playing | over
     const [levelKey, setLevelKey] = useState('easy');
     const [score, setScore] = useState(0);
@@ -183,13 +184,6 @@ export default function MathDrops({ user, onBack }) {
     const [input, setInput] = useState('');
     const [timeLeft, setTimeLeft] = useState(90);
     const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem('mdhigh') || '0'));
-
-    const saveScore = async (finalScore) => {
-        if (!user) return;
-        try {
-            await submitScore(user.name, finalScore);
-        } catch (e) { console.error(e); }
-    };
 
     const canvasRef = useRef(null);
     const rafRef = useRef(null);
@@ -200,6 +194,7 @@ export default function MathDrops({ user, onBack }) {
         levelKey: 'easy', phase: 'menu',
         timeLeft: 90, lastSecond: 0,
     });
+    const handleExit = () => saveScoreAndExit(saveScore, gs.current.score, onBack);
 
     /* ── End game ──────────────────────────────────────────────── */
     const endGame = useCallback((reason) => {
@@ -213,11 +208,12 @@ export default function MathDrops({ user, onBack }) {
         setTimeLeft(s.timeLeft);
         saveScore(s.score);
         setPhase('over');
-    }, []);
+    }, [saveScore]);
 
     /* ── Start game ────────────────────────────────────────────── */
     const startGame = useCallback((lk) => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        resetScoreSubmission();
         const cfg = LEVELS[lk];
         const s = gs.current;
         Object.assign(s, {
@@ -232,7 +228,7 @@ export default function MathDrops({ user, onBack }) {
         setScore(0); setLives(3); setInput('');
         setTimeLeft(cfg.timeLimit);
         setPhase('playing');
-    }, []);
+    }, [resetScoreSubmission]);
 
     /* ── Game loop ─────────────────────────────────────────────── */
     const loop = useCallback((ts) => {
@@ -361,7 +357,7 @@ export default function MathDrops({ user, onBack }) {
             <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0d1b2a,#0f2336,#0a2020)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Segoe UI',sans-serif" }}>
                 <style>{`@keyframes pulse { from { opacity:1; transform:scale(1); } to { opacity:0.7; transform:scale(1.15); } }`}</style>
                 {onBack && (
-                    <button onClick={onBack} style={{ position: 'fixed', top: 20, left: 20, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 14, padding: '10px 18px', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button onClick={handleExit} style={{ position: 'fixed', top: 20, left: 20, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 14, padding: '10px 18px', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <ArrowLeft size={16} /> Back
                     </button>
                 )}
@@ -489,7 +485,7 @@ export default function MathDrops({ user, onBack }) {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
                             <button onClick={() => startGame(levelKey)} style={{ padding: 14, background: '#3bc8e7', border: 'none', borderBottom: '4px solid #1e617d', borderRadius: 16, color: '#fff', fontWeight: 900, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit' }}>Try Again</button>
                             <button onClick={goMenu} style={{ padding: 12, background: 'transparent', border: '2px solid #e5e7eb', borderRadius: 16, color: '#64748b', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Change Level</button>
-                            {onBack && <button onClick={onBack} style={{ padding: 10, background: 'transparent', border: 'none', color: '#9ca3af', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Back</button>}
+                            {onBack && <button onClick={handleExit} style={{ padding: 10, background: 'transparent', border: 'none', color: '#9ca3af', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Back</button>}
                         </div>
                     </div>
                 </div>

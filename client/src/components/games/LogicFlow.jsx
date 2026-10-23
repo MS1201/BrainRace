@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Activity, Shield, ArrowLeft, RefreshCw, Check } from 'lucide-react';
-import { submitScore } from '../../services/scoreService';
+import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 const LogicFlow = ({ user, onBack }) => {
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
     const [gameState, setGameState] = useState('lobby');
     const [level, setLevel] = useState(1);
     const [score, setScore] = useState(0);
@@ -13,6 +14,8 @@ const LogicFlow = ({ user, onBack }) => {
     const [feedback, setFeedback] = useState(null); // 'correct' | 'wrong' | null
     const [timeLeft, setTimeLeft] = useState(15);
     const [correctIndices, setCorrectIndices] = useState([]); // which indices are correct answer
+
+    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
 
     const generateLevel = useCallback((lvl) => {
         // Target grows with level: 10-20 early, up to 80+ later
@@ -116,19 +119,12 @@ const LogicFlow = ({ user, onBack }) => {
     // Save score to backend when game finishes
     useEffect(() => {
         if (gameState === 'finished' && score > 0 && user?.name) {
-            const saveScore = async () => {
-                try {
-                    await submitScore(user.name, score);
-                    console.log("Score saved successfully");
-                } catch (err) {
-                    console.error("Failed to save score:", err);
-                }
-            };
-            saveScore();
+            saveScore(score);
         }
-    }, [gameState, score, user?.name]);
+    }, [gameState, score, user?.name, saveScore]);
 
     const handleStart = () => {
+        resetScoreSubmission();
         setScore(0);
         setLevel(1);
         setSelected([]);
@@ -209,7 +205,7 @@ const LogicFlow = ({ user, onBack }) => {
                     >
                         <Shield size={22} /> START GAME
                     </motion.button>
-                    <button onClick={onBack} style={{
+                    <button onClick={handleExit} style={{
                         marginTop: '20px', background: 'none', border: 'none',
                         color: 'rgba(255,255,255,0.25)', fontSize: '12px', fontWeight: 700,
                         cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '2px', textTransform: 'uppercase'
@@ -264,7 +260,7 @@ const LogicFlow = ({ user, onBack }) => {
                         >
                             <RefreshCw size={18} /> Play Again
                         </motion.button>
-                        <button onClick={onBack} style={{
+                        <button onClick={handleExit} style={{
                             padding: '20px', background: 'rgba(255,255,255,0.04)',
                             border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px',
                             color: 'rgba(255,255,255,0.4)', fontSize: '14px', fontWeight: 700,
@@ -293,7 +289,7 @@ const LogicFlow = ({ user, onBack }) => {
 
             {/* ── HUD ── */}
             <div style={{ width: '100%', maxWidth: '600px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', position: 'relative', zIndex: 10 }}>
-                <button onClick={onBack} style={{
+                <button onClick={handleExit} style={{
                     padding: '10px 18px', background: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px',
                     color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700,

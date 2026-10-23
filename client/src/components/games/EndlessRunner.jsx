@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { submitScore } from '../../services/scoreService';
+import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchQuestions } from '../../services/questionService';
 import { Zap, Fuel, Trophy, ArrowLeft, ArrowRight, ChevronLeft, Gauge, AlertTriangle } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Zap, Fuel, Trophy, ArrowLeft, ArrowRight, ChevronLeft, Gauge, AlertTria
 const FUEL_WARNING_THRESHOLD = 25; 
 
 const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
     const [gameState, setGameState] = useState('playing');
     const [score, setScore] = useState(0);
     const [carLane, setCarLane] = useState(1); 
@@ -20,6 +21,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
     const [opponents, setOpponents] = useState({});
     const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
     const scoreRef = useRef(0);
+    const handleExit = () => saveScoreAndExit(saveScore, scoreRef.current, onBack);
 
     useEffect(() => { scoreRef.current = score; }, [score]);
 
@@ -164,12 +166,6 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [gameState]);
 
-    const saveScore = async (finalScore) => {
-        try {
-            await submitScore(user?.name, finalScore);
-        } catch (e) { console.error(e); }
-    };
-
     const handleFuelAnswer = (option) => {
         const isCorrect = option === currentQuestion.correct;
         if (isCorrect) {
@@ -205,6 +201,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
     };
 
     const restartGame = () => {
+        resetScoreSubmission();
         setScore(0);
         setFuel(100);
         setObstacles([]);
@@ -230,7 +227,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                 backgroundSize: '50px 50px'
             }} />
 
-            <button onClick={onBack} style={{
+            <button onClick={handleExit} style={{
                 position: 'absolute', top: '24px', left: '24px', zIndex: 50,
                 padding: '12px 16px', background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px',
@@ -630,7 +627,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                                 🔄 Play Again
                             </motion.button>
                             <button
-                                onClick={onBack}
+                                onClick={handleExit}
                                 style={{
                                     padding: '16px', background: 'rgba(255,255,255,0.05)',
                                     border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)',

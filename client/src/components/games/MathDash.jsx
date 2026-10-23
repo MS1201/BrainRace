@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Timer, Trophy, ArrowLeft } from 'lucide-react';
-import { submitScore } from '../../services/scoreService';
+import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 const MathDash = ({ user, onBack, socket, multiplayerData }) => {
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
     const [opponents, setOpponents] = useState({});
     const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
 
@@ -30,18 +31,14 @@ const MathDash = ({ user, onBack, socket, multiplayerData }) => {
         };
     }, [socket]);
 
-    const saveScore = async (finalScore) => {
-        if (!user) return;
-        try {
-            await submitScore(user.name, finalScore);
-        } catch (e) { console.error(e); }
-    };
     const [gameState, setGameState] = useState('start'); // start, playing, gameover
     const [score, setScore] = useState(0);
     const [highScore, setHighScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(30);
     const [currentProblem, setCurrentProblem] = useState(null);
     const [feedback, setFeedback] = useState(null);
+
+    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
 
     const generateProblem = useCallback(() => {
         const operations = ['+', '-', '*'];
@@ -76,6 +73,7 @@ const MathDash = ({ user, onBack, socket, multiplayerData }) => {
     }, [score]);
 
     const startGame = () => {
+        resetScoreSubmission();
         setScore(0);
         setTimeLeft(30);
         setGameState('playing');
@@ -146,7 +144,7 @@ const MathDash = ({ user, onBack, socket, multiplayerData }) => {
             </div>
 
             {/* Back Button */}
-            <button onClick={onBack} className="absolute top-8 left-8 z-50 p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl backdrop-blur-md border border-white/10 transition-colors flex items-center gap-2">
+            <button onClick={handleExit} className="absolute top-8 left-8 z-50 p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl backdrop-blur-md border border-white/10 transition-colors flex items-center gap-2">
                 <ArrowLeft size={20} /> <span className="text-sm font-bold tracking-widest uppercase">Abort Mission</span>
             </button>
 
@@ -362,7 +360,7 @@ const MathDash = ({ user, onBack, socket, multiplayerData }) => {
                                 <motion.button 
                                     whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.1)" }} 
                                     whileTap={{ scale: 0.98 }}
-                                    onClick={onBack} 
+                                    onClick={handleExit}
                                     className="w-full py-5 bg-transparent border-2 border-white/10 text-white font-bold text-lg rounded-2xl transition-colors uppercase tracking-widest"
                                 >
                                     EXIT TO DASHBOARD

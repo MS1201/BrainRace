@@ -30,6 +30,8 @@ BrainRace is a premium, high-performance brain-training platform featuring a sui
 
 Set `EMAIL_USER` and `EMAIL_PASS` in `server/.env` if you want to enable OTP email sending. They are optional for local database development.
 
+Game results are stored in the `scores` collection in the database selected by `MONGO_URI`. The player's `totalScore` and `gamesPlayed` are updated in the `users` collection. Use the database name in your MongoDB URI when locating these collections in Compass or Atlas.
+
 ## ☁️ Deployment Guide (Render + MongoDB Atlas)
 
 ### 1. Database Setup

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Trophy, Zap, Clock, ArrowLeft } from 'lucide-react';
-import { submitScore } from '../../services/scoreService';
+import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 // Geometric shapes for tiles
 const SHAPES = ['triangle', 'hexagon', 'circle', 'diamond'];
@@ -17,12 +17,7 @@ const generateGrid = (size = 8) => {
 };
 
 const NeonNexus = ({ user, onBack, playerInfo }) => {
-    const saveScore = async (finalScore) => {
-        if (!user) return;
-        try {
-            await submitScore(user.name, finalScore);
-        } catch (e) { console.error(e); }
-    };
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
     const [gameState, setGameState] = useState('start'); // start, playing, gameover
     const [grid, setGrid] = useState([]);
     const [score, setScore] = useState(0);
@@ -30,7 +25,10 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
     const [timeLeft, setTimeLeft] = useState(60);
     const [combo, setCombo] = useState(0);
 
+    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
+
     const initGame = () => {
+        resetScoreSubmission();
         setGrid(generateGrid(8));
         setScore(0);
         setLives(3);
@@ -165,7 +163,7 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
                 <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.1)_2px,rgba(0,0,0,0.1)_4px)] z-50 pointer-events-none"></div>
             </div>
 
-            <button onClick={onBack} className="absolute top-6 left-6 z-50 p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl backdrop-blur-md border border-white/10 transition-colors flex items-center gap-2">
+            <button onClick={handleExit} className="absolute top-6 left-6 z-50 p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl backdrop-blur-md border border-white/10 transition-colors flex items-center gap-2">
                 <ArrowLeft size={18} /> <span className="text-xs font-black tracking-widest uppercase text-cyan-400">EXIT NEXUS</span>
             </button>
 
@@ -306,7 +304,7 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
                             >
                                 RECONNECT
                             </motion.button>
-                            <button onClick={onBack} className="py-4 text-white/50 hover:text-white font-bold text-sm uppercase tracking-widest transition-colors">
+                            <button onClick={handleExit} className="py-4 text-white/50 hover:text-white font-bold text-sm uppercase tracking-widest transition-colors">
                                 Return to Hub
                             </button>
                         </div>

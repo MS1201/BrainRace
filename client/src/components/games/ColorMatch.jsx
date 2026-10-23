@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Timer, Trophy, Check, X, Palette, ArrowLeft } from 'lucide-react';
-import { submitScore } from '../../services/scoreService';
+import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
     const [opponents, setOpponents] = useState({});
     const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
 
@@ -30,17 +31,13 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
         };
     }, [socket]);
 
-    const saveScore = async (finalScore) => {
-        if (!user) return;
-        try {
-            await submitScore(user.name, finalScore);
-        } catch(e) { console.error(e); }
-    };
     const [gameState, setGameState] = useState('start'); // start, playing, gameover
     const [score, setScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(25);
     const [currentPair, setCurrentPair] = useState(null);
     const [feedback, setFeedback] = useState(null);
+
+    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
 
     const colors = [
         { name: 'Red', hex: '#FF6B6B' },
@@ -64,6 +61,7 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
     }, []);
 
     const startGame = () => {
+        resetScoreSubmission();
         setScore(0);
         setTimeLeft(25);
         setGameState('playing');
@@ -127,7 +125,7 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
             </div>
 
-            <button onClick={onBack} className="absolute top-8 left-8 z-50 p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-colors backdrop-blur-md group">
+            <button onClick={handleExit} className="absolute top-8 left-8 z-50 p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-colors backdrop-blur-md group">
                 <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
             </button>
 
@@ -189,7 +187,7 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
                             <span className="relative z-10">INITIALIZE MATCH</span>
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
                         </motion.button>
-                        <button onClick={onBack} className="mt-8 font-bold text-white/30 hover:text-white transition-colors uppercase tracking-widest text-xs">Return to Station</button>
+                        <button onClick={handleExit} className="mt-8 font-bold text-white/30 hover:text-white transition-colors uppercase tracking-widest text-xs">Return to Station</button>
                     </motion.div>
                 ) : gameState === 'playing' ? (
                     <div className="space-y-10">
@@ -276,7 +274,7 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
                             >
                                 RE-STABILIZE
                             </motion.button>
-                            <button onClick={onBack} className="w-full py-6 bg-white/5 text-white/30 font-black text-xl rounded-[24px] hover:bg-white/10 transition-all uppercase tracking-widest border border-white/5">
+                            <button onClick={handleExit} className="w-full py-6 bg-white/5 text-white/30 font-black text-xl rounded-[24px] hover:bg-white/10 transition-all uppercase tracking-widest border border-white/5">
                                 TERMINATE
                             </button>
                         </div>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Zap, Trophy, ArrowLeft, RefreshCcw, Sparkles } from 'lucide-react';
-import { submitScore } from '../../services/scoreService';
+import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 const MemoryMatrix = ({ user, onBack, socket }) => {
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
     const [gameState, setGameState] = useState('lobby'); // lobby, playing, flashing, finished
     const [gridSize, setGridSize] = useState(3);
     const [sequence, setSequence] = useState([]);
@@ -12,6 +13,8 @@ const MemoryMatrix = ({ user, onBack, socket }) => {
     const [level, setLevel] = useState(1);
     const [feedback, setFeedback] = useState(null); // 'correct', 'wrong'
     const [canClick, setCanClick] = useState(false);
+
+    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
 
     const generateSequence = useCallback((size, count) => {
         const newSeq = [];
@@ -64,17 +67,9 @@ const MemoryMatrix = ({ user, onBack, socket }) => {
     // Save score to backend when game finishes
     useEffect(() => {
         if (gameState === 'finished' && score > 0 && user?.name) {
-            const saveScore = async () => {
-                try {
-                    await submitScore(user.name, score);
-                    console.log("Score saved successfully");
-                } catch (err) {
-                    console.error("Failed to save score:", err);
-                }
-            };
-            saveScore();
+            saveScore(score);
         }
-    }, [gameState, score, user?.name]);
+    }, [gameState, score, user?.name, saveScore]);
 
 
 
@@ -96,6 +91,7 @@ const MemoryMatrix = ({ user, onBack, socket }) => {
     };
 
     const handleStart = () => {
+        resetScoreSubmission();
         setScore(0);
         setLevel(1);
         setGridSize(3);
@@ -123,7 +119,7 @@ const MemoryMatrix = ({ user, onBack, socket }) => {
                     >
                         Initialize Matrix
                     </button>
-                    <button onClick={onBack} className="mt-8 text-white/20 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">
+                    <button onClick={handleExit} className="mt-8 text-white/20 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">
                         Exit Matrix
                     </button>
                 </motion.div>
@@ -152,7 +148,7 @@ const MemoryMatrix = ({ user, onBack, socket }) => {
                         <RefreshCcw size={20} /> Try Again
                     </button>
                     <button 
-                        onClick={onBack}
+                        onClick={handleExit}
                         className="w-full py-5 bg-transparent border border-white/10 text-white/60 font-black text-lg rounded-2xl hover:bg-white/5 transition-all uppercase tracking-widest"
                     >
                         Save & Exit
@@ -167,7 +163,7 @@ const MemoryMatrix = ({ user, onBack, socket }) => {
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none" />
             
             <div className="max-w-4xl mx-auto flex justify-between items-center mb-12 relative z-10">
-                <button onClick={onBack} className="p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all">
+                <button onClick={handleExit} className="p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all">
                     <ArrowLeft size={20} />
                 </button>
 

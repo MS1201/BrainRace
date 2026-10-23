@@ -1,3 +1,4 @@
+import { useCallback, useRef } from 'react';
 import API_BASE from '../config';
 
 export const submitScore = async (playerName, score) => {
@@ -17,4 +18,52 @@ export const submitScore = async (playerName, score) => {
     }
 
     return result;
+};
+
+export const useScoreSubmission = (user) => {
+    const sessionRef = useRef({ saved: false, pending: null });
+
+    const saveScore = useCallback((score) => {
+        if (!user?.name || score <= 0) return Promise.resolve(true);
+        if (!Number.isSafeInteger(score)) {
+            console.error('Failed to save score: score must be a safe integer.');
+            return Promise.resolve(false);
+        }
+
+        const session = sessionRef.current;
+        if (session.saved) return Promise.resolve(true);
+        if (session.pending) return session.pending;
+
+        const pending = submitScore(user.name, score)
+            .then(() => {
+                session.saved = true;
+                return true;
+            })
+            .catch(error => {
+                console.error('Failed to save score:', error);
+                return false;
+            })
+            .finally(() => {
+                session.pending = null;
+            });
+
+        session.pending = pending;
+        return pending;
+    }, [user?.name]);
+
+    const resetScoreSubmission = useCallback(() => {
+        sessionRef.current = { saved: false, pending: null };
+    }, []);
+
+    return { saveScore, resetScoreSubmission };
+};
+
+export const saveScoreAndExit = async (saveScore, score, onBack) => {
+    const saved = await saveScore(score);
+    if (!saved) {
+        window.alert('Your score could not be saved. Check your connection and try again before leaving.');
+        return;
+    }
+
+    onBack?.();
 };

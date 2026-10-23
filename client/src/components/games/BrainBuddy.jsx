@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowLeft, Zap, Star, Clock, Check, X } from 'lucide-react';
 import API_BASE from '../../config';
-import { submitScore } from '../../services/scoreService';
+import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 const IMAGE_EXTENSIONS = {
     'cheetah': 'jpeg',
@@ -184,6 +184,7 @@ const VISUAL_QUESTIONS = [
 ];
 
 const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
     const [gameState, setGameState] = useState('lobby'); // lobby, playing, finished
     const [questions, setQuestions] = useState([]);
     const [currentIdx, setCurrentIdx] = useState(0);
@@ -194,6 +195,7 @@ const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
     const [timer, setTimer] = useState(20);
     const [streak, setStreak] = useState(0);
     const [totalCorrect, setTotalCorrect] = useState(0);
+    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
     const [showExplanation, setShowExplanation] = useState(false);
     const [opponents, setOpponents] = useState({});
     const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
@@ -338,13 +340,8 @@ const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
         }, 2000);
     };
 
-    const saveScore = async (finalScore) => {
-        try {
-            await submitScore(user?.name, finalScore);
-        } catch (e) { console.error(e); }
-    };
-
     const restartGame = () => {
+        resetScoreSubmission();
         const shuffled = [...VISUAL_QUESTIONS].sort(() => Math.random() - 0.5);
         setQuestions(shuffled);
         setCurrentIdx(0);
@@ -466,7 +463,7 @@ const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
                         🚀 Start Quiz!
                     </motion.button>
 
-                    <button onClick={onBack} style={{
+                    <button onClick={handleExit} style={{
                         marginTop: '20px', background: 'none', border: 'none',
                         color: 'rgba(255,255,255,0.3)', fontSize: '13px',
                         cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
@@ -549,7 +546,7 @@ const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
                             🔄 Play Again
                         </motion.button>
                         <button
-                            onClick={onBack}
+                            onClick={handleExit}
                             style={{
                                 padding: '18px', background: 'rgba(255,255,255,0.05)',
                                 border: '1px solid rgba(255,255,255,0.1)', borderRadius: '18px',
@@ -585,7 +582,7 @@ const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
             }}>
                 {/* Back */}
                 {/* Back */}
-                <button onClick={onBack} style={{
+                <button onClick={handleExit} style={{
                     padding: '10px 16px', background: 'rgba(255,255,255,0.06)',
                     border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
                     color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
