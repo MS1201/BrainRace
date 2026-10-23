@@ -20,6 +20,16 @@ BrainRace is a premium, high-performance brain-training platform featuring a sui
 - **Backend**: Node.js/Express.
 - **Tooling**: Git for version control.
 
+## 💻 Local Development
+
+1. Install and start **MongoDB Community Server**. MongoDB Compass is a GUI client and does not run the database server itself.
+2. Copy `server/.env.example` to `server/.env`.
+3. Keep the example `MONGO_URI` to use a local MongoDB database named `BrainRace`. If you use Atlas instead, put its connection string in `MONGO_URI`.
+4. In MongoDB Compass, connect using the same URI (for a local database, `mongodb://127.0.0.1:27017`). The `BrainRace` database and its collections appear after the app first writes data.
+5. Install dependencies with `npm run install:all`, then start the app with `npm run dev`.
+
+Set `EMAIL_USER` and `EMAIL_PASS` in `server/.env` if you want to enable OTP email sending. They are optional for local database development.
+
 ## ☁️ Deployment Guide (Render + MongoDB Atlas)
 
 ### 1. Database Setup

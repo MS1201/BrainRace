@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Heart, X, Timer } from 'lucide-react';
-import API_BASE from '../../config';
+import { submitScore } from '../../services/scoreService';
 
 /* ─── Level Config ─────────────────────────────────────────────── */
 const LEVELS = {
@@ -187,11 +187,7 @@ export default function MathDrops({ user, onBack }) {
     const saveScore = async (finalScore) => {
         if (!user) return;
         try {
-            await fetch(`${API_BASE}/api/update-score`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playerName: user.name, score: finalScore })
-            });
+            await submitScore(user.name, finalScore);
         } catch (e) { console.error(e); }
     };
 

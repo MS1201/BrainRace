@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import API_BASE from '../../config';
+import { submitScore } from '../../services/scoreService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchQuestions } from '../../services/questionService';
 import { Zap, Fuel, Trophy, ArrowLeft, ArrowRight, ChevronLeft, Gauge, AlertTriangle } from 'lucide-react';
@@ -166,11 +166,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
 
     const saveScore = async (finalScore) => {
         try {
-            await fetch(`${API_BASE}/api/update-score`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playerName: user?.name, score: finalScore })
-            });
+            await submitScore(user?.name, finalScore);
         } catch (e) { console.error(e); }
     };
 

@@ -9,19 +9,21 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://ms9409621877:Mukul_%401201@cluster0.l0eloyz.mongodb.net/BrainRace?appName=Cluster0';
+const MONGO_URI = process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+    console.error('MONGO_URI is not set. Configure it in server/.env (see server/.env.example).');
+    process.exit(1);
+}
 
 console.log('Attempting to connect to MongoDB...');
-const maskedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
-console.log('Target:', maskedUri);
-
 mongoose.connect(MONGO_URI, {
     serverSelectionTimeoutMS: 5000,
 })
-    .then(() => console.log('✅ Connected to MongoDB Atlas!'))
+    .then(() => console.log('✅ Connected to MongoDB!'))
     .catch(err => {
         console.error('❌ MongoDB connection error:', err.message);
-        console.log('👉 ACTION REQUIRED: Check if your IP is whitelisted in MongoDB Atlas (Network Access tab).');
+        console.error('Check that MongoDB is running and MONGO_URI is correct.');
     });
 
 // Basic Schema for storing scores
@@ -83,7 +85,7 @@ app.use((req, res, next) => {
     if (req.path.startsWith('/api') && req.path !== '/api/health' && mongoose.connection.readyState !== 1) {
         return res.status(503).json({
             error: 'Database connection is not ready.',
-            details: 'Please check if your IP is whitelisted in MongoDB Atlas (Network Access tab).'
+            details: 'Check that MongoDB is running and the MONGO_URI setting is correct.'
         });
     }
     next();
@@ -105,19 +107,18 @@ if (process.env.NODE_ENV === 'production') {
 
 const server = http.createServer(app);
 
-// ✅ FIX 1: Remove spaces from App Password
-const EMAIL_USER = process.env.EMAIL_USER || 'ms9409621877@gmail.com';
-const EMAIL_PASS = (process.env.EMAIL_PASS || 'ndwsyudprflxgrxj').replace(/\s/g, ''); // strip spaces just in case
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = (process.env.EMAIL_PASS || '').replace(/\s/g, '');
+const emailConfigured = Boolean(EMAIL_USER && EMAIL_PASS);
 
-console.log('📧 Email config — user:', EMAIL_USER, '| pass length:', EMAIL_PASS.length);
+if (!emailConfigured) {
+    console.log('SMTP is not configured; OTP email sending is disabled.');
+}
 
 // ✅ FIX 2: Use port 587 + STARTTLS (more reliable than 465 on most hosting)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: {
-        user: EMAIL_USER,
-        pass: EMAIL_PASS
-    },
+    ...(emailConfigured ? { auth: { user: EMAIL_USER, pass: EMAIL_PASS } } : {}),
     connectionTimeout: 15000,
     greetingTimeout: 15000,
     socketTimeout: 20000,
@@ -125,17 +126,24 @@ const transporter = nodemailer.createTransport({
     debug: true
 });
 
-// Verify SMTP connection at startup
-transporter.verify()
-    .then(() => console.log('✅ SMTP server is ready to send emails'))
-    .catch(err => {
-        console.error('❌ SMTP verification failed:', err.message);
-        console.log('👉 ACTION REQUIRED: Make sure EMAIL_PASS is a valid Gmail App Password (no spaces, 16 chars).');
-        console.log('   Generate one at: https://myaccount.google.com/apppasswords');
-    });
+if (emailConfigured) {
+    transporter.verify()
+        .then(() => console.log('✅ SMTP server is ready to send emails'))
+        .catch(err => {
+            console.error('❌ SMTP verification failed:', err.message);
+            console.log('Check that EMAIL_USER and EMAIL_PASS are valid Gmail SMTP credentials.');
+        });
+}
 
 // Email health check endpoint
 app.get('/api/email-health', async (req, res) => {
+    if (!emailConfigured) {
+        return res.status(503).json({
+            status: 'error',
+            message: 'Email service is not configured.'
+        });
+    }
+
     try {
         await transporter.verify();
         res.json({ status: 'ok', message: 'SMTP connection verified', user: EMAIL_USER });
@@ -189,6 +197,10 @@ app.post('/api/login', async (req, res) => {
 // ✅ FIX 3: Robust OTP route with detailed error handling
 app.post('/api/request-otp', async (req, res) => {
     try {
+        if (!emailConfigured) {
+            return res.status(503).json({ error: 'Email service is not configured.' });
+        }
+
         let { email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
         email = email.trim().toLowerCase();
@@ -295,14 +307,28 @@ app.get('/api/leaderboard', async (req, res) => {
 app.post('/api/update-score', async (req, res) => {
     try {
         const { playerName, score } = req.body;
-        if (!playerName) return res.status(400).json({ error: 'Player name is required' });
+        const normalizedPlayerName = typeof playerName === 'string' ? playerName.trim() : '';
+        if (!normalizedPlayerName) {
+            return res.status(400).json({ error: 'Player name is required' });
+        }
+        if (!Number.isSafeInteger(score) || score < 0) {
+            return res.status(400).json({ error: 'Score must be a non-negative integer' });
+        }
 
-        await Score.create({ playerName, score });
-        const user = await User.findOneAndUpdate(
-            { name: playerName },
+        const existingUser = await User.findOne({ name: normalizedPlayerName }).select('_id');
+        if (!existingUser) {
+            return res.status(404).json({ error: 'User not found for submitted score' });
+        }
+
+        await Score.create({ playerName: normalizedPlayerName, score });
+        const user = await User.findByIdAndUpdate(
+            existingUser._id,
             { $inc: { totalScore: score, gamesPlayed: 1 } },
-            { new: true }
-        );
+            { new: true, runValidators: true }
+        ).select('-password');
+        if (!user) {
+            return res.status(404).json({ error: 'User not found while updating score' });
+        }
         res.json(user);
     } catch (err) {
         res.status(500).json({ error: err.message });

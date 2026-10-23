@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Timer, Trophy, ArrowLeft } from 'lucide-react';
-import API_BASE from '../../config';
+import { submitScore } from '../../services/scoreService';
 
 const MathDash = ({ user, onBack, socket, multiplayerData }) => {
     const [opponents, setOpponents] = useState({});
@@ -33,11 +33,7 @@ const MathDash = ({ user, onBack, socket, multiplayerData }) => {
     const saveScore = async (finalScore) => {
         if (!user) return;
         try {
-            await fetch(`${API_BASE}/api/update-score`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playerName: user.name, score: finalScore })
-            });
+            await submitScore(user.name, finalScore);
         } catch (e) { console.error(e); }
     };
     const [gameState, setGameState] = useState('start'); // start, playing, gameover
