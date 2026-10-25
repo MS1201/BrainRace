@@ -4,7 +4,7 @@ import { Timer, Trophy, Check, X, Palette, ArrowLeft } from 'lucide-react';
 import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
-    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user, 'Color Match');
     const [opponents, setOpponents] = useState({});
     const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
 
@@ -22,6 +22,7 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
 
         socket.on('gameOver', ({ winner }) => {
             setGameState('gameover');
+            saveScore(scoreRef.current, 'Color Match');
         });
 
         return () => {
@@ -38,7 +39,7 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
     const [currentPair, setCurrentPair] = useState(null);
     const [feedback, setFeedback] = useState(null);
 
-    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
+    const handleExit = () => saveScoreAndExit(saveScore, scoreRef.current, onBack, 'Color Match');
 
     const colors = [
         { name: 'Red', hex: '#FF6B6B' },

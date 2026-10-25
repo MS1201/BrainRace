@@ -17,7 +17,7 @@ const generateGrid = (size = 8) => {
 };
 
 const NeonNexus = ({ user, onBack, playerInfo }) => {
-    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user, 'Neon Nexus');
     const [gameState, setGameState] = useState('start'); // start, playing, gameover
     const [grid, setGrid] = useState([]);
     const [score, setScore] = useState(0);
@@ -26,7 +26,7 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
     const [timeLeft, setTimeLeft] = useState(60);
     const [combo, setCombo] = useState(0);
 
-    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
+    const handleExit = () => saveScoreAndExit(saveScore, scoreRef.current, onBack, 'Neon Nexus');
 
     const initGame = () => {
         resetScoreSubmission();

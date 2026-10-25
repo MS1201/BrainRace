@@ -1,7 +1,8 @@
 import { useCallback, useRef } from 'react';
 import API_BASE from '../config';
 
-export const submitScore = async (user, score) => {
+export const submitScore = async (user, score, game = 'General') => {
+    const numericScore = Math.round(Number(score)) || 0;
     const response = await fetch(`${API_BASE}/api/update-score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -9,7 +10,8 @@ export const submitScore = async (user, score) => {
             userId: user?._id,
             email: user?.email,
             playerName: user?.name,
-            score
+            score: numericScore,
+            game
         })
     });
     const result = await response.json();
@@ -18,28 +20,21 @@ export const submitScore = async (user, score) => {
         throw new Error(result.error || 'Failed to save score.');
     }
 
-    if (!result?.name) {
-        throw new Error('Score was not associated with a user.');
-    }
-
     return result;
 };
 
-export const useScoreSubmission = (user) => {
+export const useScoreSubmission = (user, defaultGame = 'General') => {
     const sessionRef = useRef({ saved: false, pending: null });
 
-    const saveScore = useCallback((score) => {
-        if ((!user?._id && !user?.email && !user?.name) || score <= 0) return Promise.resolve(true);
-        if (!Number.isSafeInteger(score)) {
-            console.error('Failed to save score: score must be a safe integer.');
-            return Promise.resolve(false);
-        }
+    const saveScore = useCallback((score, game = defaultGame) => {
+        const numericScore = Math.round(Number(score)) || 0;
+        if (numericScore <= 0) return Promise.resolve(true);
 
         const session = sessionRef.current;
         if (session.saved) return Promise.resolve(true);
         if (session.pending) return session.pending;
 
-        const pending = submitScore(user, score)
+        const pending = submitScore(user, numericScore, game)
             .then(() => {
                 session.saved = true;
                 return true;
@@ -54,7 +49,7 @@ export const useScoreSubmission = (user) => {
 
         session.pending = pending;
         return pending;
-    }, [user?._id, user?.email, user?.name]);
+    }, [user?._id, user?.email, user?.name, defaultGame]);
 
     const resetScoreSubmission = useCallback(() => {
         sessionRef.current = { saved: false, pending: null };
@@ -63,12 +58,14 @@ export const useScoreSubmission = (user) => {
     return { saveScore, resetScoreSubmission };
 };
 
-export const saveScoreAndExit = async (saveScore, score, onBack) => {
-    const saved = await saveScore(score);
-    if (!saved) {
-        window.alert('Your score could not be saved. Check your connection and try again before leaving.');
-        return;
+export const saveScoreAndExit = async (saveScore, score, onBack, game = 'General') => {
+    const numericScore = Math.round(Number(score)) || 0;
+    if (numericScore > 0) {
+        try {
+            await saveScore(numericScore, game);
+        } catch (e) {
+            console.warn('Score could not be saved before exit:', e);
+        }
     }
-
     onBack?.();
 };

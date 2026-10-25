@@ -176,7 +176,7 @@ function TimerRing({ timeLeft, timeLimit, color }) {
 
 /* ─── Main Component ───────────────────────────────────────────── */
 export default function MathDrops({ user, onBack }) {
-    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user, 'Math Drops');
     const [phase, setPhase] = useState('menu');      // menu | playing | over
     const [levelKey, setLevelKey] = useState('easy');
     const [score, setScore] = useState(0);
@@ -194,7 +194,7 @@ export default function MathDrops({ user, onBack }) {
         levelKey: 'easy', phase: 'menu',
         timeLeft: 90, lastSecond: 0,
     });
-    const handleExit = () => saveScoreAndExit(saveScore, gs.current.score, onBack);
+    const handleExit = () => saveScoreAndExit(saveScore, gs.current.score, onBack, 'Math Drops');
 
     /* ── End game ──────────────────────────────────────────────── */
     const endGame = useCallback((reason) => {
@@ -206,7 +206,7 @@ export default function MathDrops({ user, onBack }) {
         setHighScore(hs);
         setScore(s.score);
         setTimeLeft(s.timeLeft);
-        saveScore(s.score);
+        saveScore(s.score, 'Math Drops');
         setPhase('over');
     }, [saveScore]);
 

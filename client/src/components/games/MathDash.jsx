@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Timer, Trophy, ArrowLeft } from 'lucide-react';
 import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 const MathDash = ({ user, onBack, socket, multiplayerData }) => {
-    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user, 'Math Dash');
     const [opponents, setOpponents] = useState({});
     const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
 
@@ -22,6 +22,7 @@ const MathDash = ({ user, onBack, socket, multiplayerData }) => {
 
         socket.on('gameOver', ({ winner }) => {
             setGameState('gameover');
+            saveScore(scoreRef.current, 'Math Dash');
         });
 
         return () => {
@@ -33,12 +34,14 @@ const MathDash = ({ user, onBack, socket, multiplayerData }) => {
 
     const [gameState, setGameState] = useState('start'); // start, playing, gameover
     const [score, setScore] = useState(0);
+    const scoreRef = useRef(0);
+    useEffect(() => { scoreRef.current = score; }, [score]);
     const [highScore, setHighScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(30);
     const [currentProblem, setCurrentProblem] = useState(null);
     const [feedback, setFeedback] = useState(null);
 
-    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
+    const handleExit = () => saveScoreAndExit(saveScore, scoreRef.current, onBack, 'Math Dash');
 
     const generateProblem = useCallback(() => {
         const operations = ['+', '-', '*'];
@@ -123,11 +126,11 @@ const MathDash = ({ user, onBack, socket, multiplayerData }) => {
             timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
         } else if (timeLeft <= 0 && gameState === 'playing') {
             setGameState('gameover');
-            if (score > highScore) setHighScore(score);
-            saveScore(score);
+            if (scoreRef.current > highScore) setHighScore(scoreRef.current);
+            saveScore(scoreRef.current, 'Math Dash');
         }
         return () => clearInterval(timer);
-    }, [gameState, timeLeft, score, highScore]);
+    }, [gameState, timeLeft, highScore]);
 
     // Progress bar calculations
     const progressPercentage = Math.min(100, (score / 2000) * 100); // Max conceptual score for race line

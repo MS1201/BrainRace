@@ -1,20 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Zap, Trophy, ArrowLeft, RefreshCcw, Sparkles } from 'lucide-react';
 import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 const MemoryMatrix = ({ user, onBack, socket }) => {
-    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user, 'Memory Matrix');
     const [gameState, setGameState] = useState('lobby'); // lobby, playing, flashing, finished
     const [gridSize, setGridSize] = useState(3);
     const [sequence, setSequence] = useState([]);
     const [userInput, setUserInput] = useState([]);
     const [score, setScore] = useState(0);
+    const scoreRef = useRef(0);
+    useEffect(() => { scoreRef.current = score; }, [score]);
     const [level, setLevel] = useState(1);
     const [feedback, setFeedback] = useState(null); // 'correct', 'wrong'
     const [canClick, setCanClick] = useState(false);
 
-    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
+    const handleExit = () => saveScoreAndExit(saveScore, scoreRef.current, onBack, 'Memory Matrix');
 
     const generateSequence = useCallback((size, count) => {
         const newSeq = [];
@@ -66,10 +68,10 @@ const MemoryMatrix = ({ user, onBack, socket }) => {
 
     // Save score to backend when game finishes
     useEffect(() => {
-        if (gameState === 'finished' && score > 0 && user?.name) {
-            saveScore(score);
+        if (gameState === 'finished' && scoreRef.current > 0) {
+            saveScore(scoreRef.current, 'Memory Matrix');
         }
-    }, [gameState, score, user?.name, saveScore]);
+    }, [gameState, saveScore]);
 
 
 

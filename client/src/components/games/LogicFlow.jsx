@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Activity, Shield, ArrowLeft, RefreshCw, Check } from 'lucide-react';
 import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
 
 const LogicFlow = ({ user, onBack }) => {
-    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user, 'Logic Flow');
     const [gameState, setGameState] = useState('lobby');
     const [level, setLevel] = useState(1);
     const [score, setScore] = useState(0);
+    const scoreRef = useRef(0);
+    useEffect(() => { scoreRef.current = score; }, [score]);
     const [target, setTarget] = useState(0);
     const [options, setOptions] = useState([]); // [{value, isCorrect}]
     const [selected, setSelected] = useState([]); // indices of selected buttons
@@ -15,7 +17,7 @@ const LogicFlow = ({ user, onBack }) => {
     const [timeLeft, setTimeLeft] = useState(15);
     const [correctIndices, setCorrectIndices] = useState([]); // which indices are correct answer
 
-    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
+    const handleExit = () => saveScoreAndExit(saveScore, scoreRef.current, onBack, 'Logic Flow');
 
     const generateLevel = useCallback((lvl) => {
         // Target grows with level: 10-20 early, up to 80+ later
@@ -118,10 +120,10 @@ const LogicFlow = ({ user, onBack }) => {
 
     // Save score to backend when game finishes
     useEffect(() => {
-        if (gameState === 'finished' && score > 0 && user?.name) {
-            saveScore(score);
+        if (gameState === 'finished' && scoreRef.current > 0) {
+            saveScore(scoreRef.current, 'Logic Flow');
         }
-    }, [gameState, score, user?.name, saveScore]);
+    }, [gameState, saveScore]);
 
     const handleStart = () => {
         resetScoreSubmission();
@@ -429,7 +431,7 @@ const LogicFlow = ({ user, onBack }) => {
                                                     : 'transparent',
                                             border: `2px solid ${opt.isCorrect ? 'rgba(74,222,128,0.5)' : 'transparent'}`,
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            fontSize: '28px', borderRadius: '20px'
+                                            fontSize: '28px'
                                         }}
                                     >
                                         {opt.isCorrect ? '✅' : ''}

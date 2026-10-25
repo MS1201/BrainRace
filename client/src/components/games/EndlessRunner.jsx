@@ -7,7 +7,7 @@ import { Zap, Fuel, Trophy, ArrowLeft, ArrowRight, ChevronLeft, Gauge, AlertTria
 const FUEL_WARNING_THRESHOLD = 25; 
 
 const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
-    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user, 'Endless Runner');
     const [gameState, setGameState] = useState('playing');
     const [score, setScore] = useState(0);
     const [carLane, setCarLane] = useState(1); 
@@ -21,7 +21,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
     const [opponents, setOpponents] = useState({});
     const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
     const scoreRef = useRef(0);
-    const handleExit = () => saveScoreAndExit(saveScore, scoreRef.current, onBack);
+    const handleExit = () => saveScoreAndExit(saveScore, scoreRef.current, onBack, 'Endless Runner');
 
     useEffect(() => { scoreRef.current = score; }, [score]);
 
@@ -86,7 +86,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
 
                 if (newFuel <= 0) {
                     setGameState('gameover');
-                    saveScore(scoreRef.current);
+                    saveScore(scoreRef.current, 'Endless Runner');
                 }
                 return newFuel;
             });
@@ -195,7 +195,7 @@ const EndlessRunner = ({ user, onBack, socket, multiplayerData }) => {
                 setAnswerFeedback(null);
                 setCurrentQuestion(null);
                 setGameState('gameover');
-                saveScore(scoreRef.current);
+                saveScore(scoreRef.current, 'Endless Runner');
             }, 1500);
         }
     };

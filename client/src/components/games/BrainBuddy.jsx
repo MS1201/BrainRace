@@ -184,7 +184,7 @@ const VISUAL_QUESTIONS = [
 ];
 
 const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
-    const { saveScore, resetScoreSubmission } = useScoreSubmission(user);
+    const { saveScore, resetScoreSubmission } = useScoreSubmission(user, 'Brain Buddy');
     const [gameState, setGameState] = useState('lobby'); // lobby, playing, finished
     const [questions, setQuestions] = useState([]);
     const [currentIdx, setCurrentIdx] = useState(0);
@@ -195,7 +195,7 @@ const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
     const [timer, setTimer] = useState(20);
     const [streak, setStreak] = useState(0);
     const [totalCorrect, setTotalCorrect] = useState(0);
-    const handleExit = () => saveScoreAndExit(saveScore, score, onBack);
+    const handleExit = () => saveScoreAndExit(saveScore, score, onBack, 'Brain Buddy');
     const [showExplanation, setShowExplanation] = useState(false);
     const [opponents, setOpponents] = useState({});
     const [teamScores, setTeamScores] = useState({ Red: 0, Blue: 0 });
@@ -316,7 +316,7 @@ const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
             if (lives <= 1) {
                 // Game over after showing wrong feedback
                 setTimeout(() => {
-                    saveScore(score);
+                    saveScore(score, 'Brain Buddy');
                     setGameState('finished');
                 }, 1800);
                 return;
@@ -334,7 +334,7 @@ const BrainBuddy = ({ user, onBack, socket, multiplayerData }) => {
             if (currentIdx < questions.length - 1) {
                 setCurrentIdx(i => i + 1);
             } else {
-                saveScore(score + (isCorrect ? (100 + timer * 15 + streak * 50) : 0));
+                saveScore(score + (isCorrect ? (100 + timer * 15 + streak * 50) : 0), 'Brain Buddy');
                 setGameState('finished');
             }
         }, 2000);

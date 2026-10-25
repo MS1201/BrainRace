@@ -32,13 +32,15 @@ mongoose.connect(MONGO_URI, {
         console.error('Check that MongoDB is running and MONGO_URI is correct.');
     });
 
-// Basic Schema for storing scores
+// Schema for storing individual game scores in MongoDB 'scores' collection
 const ScoreSchema = new mongoose.Schema({
-    playerName: String,
-    score: Number,
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    playerName: { type: String, required: true },
+    score: { type: Number, required: true },
+    game: { type: String, default: 'General' },
     date: { type: Date, default: Date.now }
-});
-const Score = mongoose.model('Score', ScoreSchema);
+}, { collection: 'scores', timestamps: true });
+const Score = mongoose.model('Score', ScoreSchema, 'scores');
 
 // User Schema for Auth and Stats
 const UserSchema = new mongoose.Schema({
@@ -298,11 +300,21 @@ app.get('/api/leaderboard', async (req, res) => {
 });
 
 
+app.get('/api/scores', async (req, res) => {
+    try {
+        const scores = await Score.find().sort({ date: -1 }).limit(50);
+        res.json(scores);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/update-score', async (req, res) => {
     try {
-        const { userId, email, playerName, score } = req.body;
-        if (!Number.isSafeInteger(score) || score < 0) {
-            return res.status(400).json({ error: 'Score must be a non-negative integer' });
+        const { userId, email, playerName, score, game, gameType } = req.body;
+        const numericScore = Math.round(Number(score));
+        if (isNaN(numericScore) || numericScore < 0) {
+            return res.status(400).json({ error: 'Score must be a non-negative number' });
         }
 
         // Try to find user by userId, email, or playerName
@@ -311,29 +323,40 @@ app.post('/api/update-score', async (req, res) => {
         let existingUser = null;
 
         if (typeof userId === 'string' && mongoose.isValidObjectId(userId)) {
-            existingUser = await User.findById(userId).select('_id name');
+            existingUser = await User.findById(userId).select('_id name email totalScore gamesPlayed');
         }
         if (!existingUser && normalizedEmail) {
-            existingUser = await User.findOne({ email: normalizedEmail }).select('_id name');
+            existingUser = await User.findOne({ email: normalizedEmail }).select('_id name email totalScore gamesPlayed');
         }
         if (!existingUser && !userId && !normalizedEmail && normalizedPlayerName) {
-            existingUser = await User.findOne({ name: normalizedPlayerName }).select('_id name');
+            existingUser = await User.findOne({ name: normalizedPlayerName }).select('_id name email totalScore gamesPlayed');
         }
 
         const resolvedName = existingUser ? existingUser.name : (normalizedPlayerName || 'Unknown');
-        const numericScore = Number(score);
+        const resolvedGame = game || gameType || 'General';
 
-        // Save individual game score record independently
+        // Save individual game score record independently to 'scores' collection
+        let savedScoreDoc = null;
         try {
-            await Score.create({ playerName: resolvedName, score: numericScore });
-            console.log(`✅ Score saved: ${resolvedName} = ${numericScore}`);
+            savedScoreDoc = await Score.create({
+                userId: existingUser ? existingUser._id : (mongoose.isValidObjectId(userId) ? userId : undefined),
+                playerName: resolvedName,
+                score: numericScore,
+                game: resolvedGame,
+                date: new Date()
+            });
+            console.log(`✅ [MongoDB Atlas] Saved to scores collection: ${resolvedName} | Game: ${resolvedGame} | Score: ${numericScore} (Doc ID: ${savedScoreDoc._id})`);
         } catch (scoreErr) {
-            console.error('❌ Error saving score document:', scoreErr.message);
+            console.error('❌ Error saving document to scores collection:', scoreErr.message);
         }
 
         if (!existingUser) {
-            return res.status(404).json({
-                error: 'Your account was not found. Sign out and sign in again, and verify MONGO_URI points to the correct database.'
+            console.warn(`⚠️ User record not found for: ${resolvedName}. Score saved to scores collection.`);
+            return res.json({
+                name: resolvedName,
+                totalScore: numericScore,
+                gamesPlayed: 1,
+                scoreDocId: savedScoreDoc?._id
             });
         }
 
@@ -345,16 +368,19 @@ app.post('/api/update-score', async (req, res) => {
                 { $inc: { totalScore: numericScore, gamesPlayed: 1 } },
                 { new: true, runValidators: true }
             ).select('-password');
-            if (updatedUser) console.log(`✅ User updated: ${resolvedName} totalScore=${updatedUser.totalScore}`);
-            else console.warn(`⚠️ User not found during update: ${resolvedName}`);
+            if (updatedUser) {
+                console.log(`✅ [MongoDB Atlas] Updated user cumulative stats: ${resolvedName} totalScore=${updatedUser.totalScore}`);
+            }
         } catch (userErr) {
-            console.error('❌ Error updating user:', userErr.message);
+            console.error('❌ Error updating user cumulative stats:', userErr.message);
         }
 
-        if (!updatedUser) {
-            return res.status(404).json({ error: 'User not found while updating score' });
-        }
-        res.json(updatedUser);
+        res.json(updatedUser || {
+            name: resolvedName,
+            totalScore: numericScore,
+            gamesPlayed: 1,
+            scoreDocId: savedScoreDoc?._id
+        });
     } catch (err) {
         console.error('❌ update-score error:', err.message);
         res.status(500).json({ error: err.message });
@@ -505,16 +531,20 @@ io.on('connection', (socket) => {
                 io.to(roomId).emit('gameOver', { winner: team });
 
                 // Save scores to MongoDB
-                rooms[roomId].players.forEach(async (p) => {
+                const gameName = rooms[roomId].gameType || 'Multiplayer';
+                Promise.all(rooms[roomId].players.map(async (p) => {
                     const finalScore = rooms[roomId].scores[p.team];
-                    // Save score document independently
                     try {
-                        await Score.create({ playerName: p.playerName, score: finalScore });
-                        console.log(`✅ Multiplayer score saved: ${p.playerName} = ${finalScore}`);
+                        await Score.create({
+                            playerName: p.playerName,
+                            score: finalScore,
+                            game: gameName,
+                            date: new Date()
+                        });
+                        console.log(`✅ Multiplayer score saved to scores collection: ${p.playerName} (${gameName}) = ${finalScore}`);
                     } catch (scoreErr) {
                         console.error('❌ Error saving multiplayer score doc:', scoreErr.message);
                     }
-                    // Update user stats independently
                     try {
                         await User.findOneAndUpdate(
                             { name: p.playerName },
@@ -523,7 +553,7 @@ io.on('connection', (socket) => {
                     } catch (userErr) {
                         console.error('❌ Error updating multiplayer user:', userErr.message);
                     }
-                });
+                })).catch(err => console.error('Multiplayer score batch error:', err));
 
                 rooms[roomId].scores = { Red: 0, Blue: 0 };
                 rooms[roomId].status = 'finished';
