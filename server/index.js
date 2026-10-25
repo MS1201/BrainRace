@@ -9,24 +9,31 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 
-const MONGO_URI = process.env.MONGO_URI;
+const rawUri = process.env.MONGO_URI;
 
-if (!MONGO_URI) {
+if (!rawUri) {
     console.error('MONGO_URI is not set. Configure it in server/.env (see server/.env.example).');
     process.exit(1);
 }
 
-console.log('Attempting to connect to MongoDB...');
-// Mask password in logs
-const maskedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
-console.log('Target:', maskedUri);
+// User confirmed target database is 'test'
+const DB_NAME = process.env.MONGO_DB_NAME || 'test';
 
-// mongoose.set('bufferCommands', false); // Removed to avoid immediate crashes
+// Ensure URI points to 'test' database instead of 'BrainRace'
+let MONGO_URI = rawUri;
+if (MONGO_URI.includes('/BrainRace')) {
+    MONGO_URI = MONGO_URI.replace('/BrainRace', `/${DB_NAME}`);
+}
+
+console.log('Attempting to connect to MongoDB...');
+const maskedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
+console.log('Target:', maskedUri, '| Database:', DB_NAME);
 
 mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+    dbName: DB_NAME,
+    serverSelectionTimeoutMS: 5000,
 })
-    .then(() => console.log('✅ Connected to MongoDB!'))
+    .then((conn) => console.log(`✅ Connected to MongoDB! Active Database: ${conn.connection.name}`))
     .catch(err => {
         console.error('❌ MongoDB connection error:', err.message);
         console.error('Check that MongoDB is running and MONGO_URI is correct.');
@@ -112,8 +119,27 @@ app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
         database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        activeDatabase: mongoose.connection.name || 'test',
         time: new Date()
     });
+});
+
+app.get('/api/db-status', async (req, res) => {
+    try {
+        const dbName = mongoose.connection.name || 'test';
+        const scoresCount = await Score.countDocuments();
+        const usersCount = await User.countDocuments();
+        const latestScores = await Score.find().sort({ date: -1 }).limit(10);
+        res.json({
+            status: 'ok',
+            activeDatabase: dbName,
+            scoresCount,
+            usersCount,
+            latestScores
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Serve static files from the client/dist folder in production
