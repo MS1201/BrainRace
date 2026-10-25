@@ -21,6 +21,7 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
     const [gameState, setGameState] = useState('start'); // start, playing, gameover
     const [grid, setGrid] = useState([]);
     const [score, setScore] = useState(0);
+    const scoreRef = useRef(0); // always-current ref to avoid stale closures
     const [lives, setLives] = useState(3);
     const [timeLeft, setTimeLeft] = useState(60);
     const [combo, setCombo] = useState(0);
@@ -31,6 +32,7 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
         resetScoreSubmission();
         setGrid(generateGrid(8));
         setScore(0);
+        scoreRef.current = 0;
         setLives(3);
         setTimeLeft(60);
         setCombo(0);
@@ -81,7 +83,7 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
             if (lostLife) {
                 setCombo(0);
                 setLives(l => {
-                    if (l <= 1) { setGameState('gameover'); saveScore(score); }
+                    if (l <= 1) { setGameState('gameover'); saveScore(scoreRef.current); }
                     return l - 1;
                 });
             }
@@ -97,7 +99,7 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
             setTimeLeft(t => {
                 if (t <= 1) {
                     setGameState('gameover');
-                    saveScore(score);
+                    saveScore(scoreRef.current);
                     return 0;
                 }
                 return t - 1;
@@ -122,7 +124,11 @@ const NeonNexus = ({ user, onBack, playerInfo }) => {
         });
 
         setCombo(c => c + 1);
-        setScore(s => s + 50 + (combo * 10));
+        setScore(s => {
+            const next = s + 50 + (combo * 10);
+            scoreRef.current = next;
+            return next;
+        });
     };
 
     const renderShape = (shape, active, color) => {

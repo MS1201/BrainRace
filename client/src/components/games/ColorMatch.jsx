@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Timer, Trophy, Check, X, Palette, ArrowLeft } from 'lucide-react';
 import { saveScoreAndExit, useScoreSubmission } from '../../services/scoreService';
@@ -33,6 +33,7 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
 
     const [gameState, setGameState] = useState('start'); // start, playing, gameover
     const [score, setScore] = useState(0);
+    const scoreRef = useRef(0); // always-current ref to avoid stale closures
     const [timeLeft, setTimeLeft] = useState(25);
     const [currentPair, setCurrentPair] = useState(null);
     const [feedback, setFeedback] = useState(null);
@@ -63,6 +64,7 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
     const startGame = () => {
         resetScoreSubmission();
         setScore(0);
+        scoreRef.current = 0;
         setTimeLeft(25);
         setGameState('playing');
         generatePair();
@@ -71,7 +73,11 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
     const handleDecision = (userSaysMatch) => {
         if (gameState !== 'playing') return;
         if (userSaysMatch === currentPair.isMatch) {
-            setScore(s => s + 150);
+            setScore(s => {
+                const next = s + 150;
+                scoreRef.current = next;
+                return next;
+            });
             setFeedback({ type: 'correct', icon: <Check size={80} /> });
             setTimeLeft(t => Math.min(25, t + 1));
 
@@ -111,7 +117,7 @@ const ColorMatch = ({ user, onBack, socket, multiplayerData }) => {
             timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
         } else if (timeLeft <= 0 && gameState === 'playing') {
             setGameState('gameover');
-            saveScore(score);
+            saveScore(scoreRef.current);
         }
         return () => clearInterval(timer);
     }, [gameState, timeLeft]);

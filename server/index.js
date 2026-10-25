@@ -17,8 +17,14 @@ if (!MONGO_URI) {
 }
 
 console.log('Attempting to connect to MongoDB...');
+// Mask password in logs
+const maskedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
+console.log('Target:', maskedUri);
+
+// mongoose.set('bufferCommands', false); // Removed to avoid immediate crashes
+
 mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
 })
     .then(() => console.log('✅ Connected to MongoDB!'))
     .catch(err => {
@@ -46,12 +52,14 @@ const UserSchema = new mongoose.Schema({
     role: { type: String, enum: ['student', 'teacher', 'admin'], default: 'student' }
 });
 
+// Pre-save hook to hash password
 UserSchema.pre('save', async function () {
     if (!this.isModified('password')) return;
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
 });
 
+// Method to compare password
 UserSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
@@ -60,7 +68,7 @@ const User = mongoose.model('User', UserSchema);
 
 // Question Schema
 const QuestionSchema = new mongoose.Schema({
-    gameType: { type: String, required: true },
+    gameType: { type: String, required: true }, // e.g., 'logic-flow', 'memory-matrix'
     questionText: String,
     options: [String],
     correctAnswer: mongoose.Schema.Types.Mixed,
@@ -72,6 +80,11 @@ const Question = mongoose.model('Question', QuestionSchema);
 
 
 const app = express();
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    process.env.FRONTEND_URL
+].filter(Boolean);
 
 app.use(cors({
     origin: true,
@@ -82,6 +95,7 @@ app.use(express.json());
 
 // Middleware to check database connection
 app.use((req, res, next) => {
+    // Only check for API routes
     if (req.path.startsWith('/api') && req.path !== '/api/health' && mongoose.connection.readyState !== 1) {
         return res.status(503).json({
             error: 'Database connection is not ready.',
@@ -100,9 +114,11 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Serve static files from the client/dist folder in production
 if (process.env.NODE_ENV === 'production') {
     const path = require('path');
     app.use(express.static(path.join(__dirname, '../client/dist')));
+    // NOTE: the SPA catch-all is registered AFTER all API routes (see bottom of file)
 }
 
 const server = http.createServer(app);
@@ -115,7 +131,7 @@ if (!emailConfigured) {
     console.log('SMTP is not configured; OTP email sending is disabled.');
 }
 
-// ✅ FIX 2: Use port 587 + STARTTLS (more reliable than 465 on most hosting)
+// Use port 587 + STARTTLS (more reliable than 465 on most hosting)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     ...(emailConfigured ? { auth: { user: EMAIL_USER, pass: EMAIL_PASS } } : {}),
@@ -160,9 +176,7 @@ app.get('/api/email-health', async (req, res) => {
 // Auth Routes
 app.post('/api/signup', async (req, res) => {
     try {
-        let { name, email, password } = req.body;
-        if (!email) return res.status(400).json({ error: 'Email is required' });
-        email = email.trim().toLowerCase();
+        const { name, email, password } = req.body;
         const exists = await User.findOne({ email });
         if (exists) return res.status(400).json({ error: 'Email already exists' });
 
@@ -177,9 +191,7 @@ app.post('/api/signup', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
     try {
-        let { email, password } = req.body;
-        if (!email) return res.status(400).json({ error: 'Email is required' });
-        email = email.trim().toLowerCase();
+        const { email, password } = req.body;
         const user = await User.findOne({ email });
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -194,7 +206,6 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// ✅ FIX 3: Robust OTP route with detailed error handling
 app.post('/api/request-otp', async (req, res) => {
     try {
         if (!emailConfigured) {
@@ -210,12 +221,11 @@ app.post('/api/request-otp', async (req, res) => {
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-
         // Use updateOne to avoid triggering the pre-save password hash hook
         await User.updateOne({ email }, { $set: { otp, otpExpires } });
 
         const mailOptions = {
-            from: `"BrainRace Support" <${EMAIL_USER}>`,
+            from: '"BrainRace Support" <ms9409621877@gmail.com>',
             to: email,
             subject: 'Your BrainRace OTP Code',
             html: `
@@ -231,36 +241,17 @@ app.post('/api/request-otp', async (req, res) => {
             `
         };
 
-        // ✅ FIX 4: Await sendMail and capture result
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ OTP email sent:', info.messageId, '→', email);
-
+        await transporter.sendMail(mailOptions);
         res.json({ message: 'OTP sent to your email' });
     } catch (err) {
-        console.error('❌ OTP Send Error — code:', err.code, '| message:', err.message);
-
-        let userMessage = 'Failed to send OTP. ';
-        if (err.code === 'EAUTH') {
-            userMessage += 'Email authentication failed. The Gmail App Password is invalid or expired. Generate a new one at https://myaccount.google.com/apppasswords';
-        } else if (err.code === 'ESOCKET' || err.code === 'ECONNECTION' || err.code === 'ECONNREFUSED') {
-            userMessage += 'Could not connect to email server. Please try again later.';
-        } else if (err.code === 'ETIMEDOUT') {
-            userMessage += 'Email server timed out. Please try again.';
-        } else if (err.responseCode === 535) {
-            userMessage += 'Gmail authentication error (535). Make sure you are using an App Password, not your Gmail account password.';
-        } else {
-            userMessage += `Please try again later. (${err.code || err.message})`;
-        }
-
-        res.status(500).json({ error: userMessage });
+        console.error('OTP Send Error:', err);
+        res.status(500).json({ error: 'Failed to send OTP. Please check your email configuration.' });
     }
 });
 
 app.post('/api/verify-otp', async (req, res) => {
     try {
-        let { email, otp } = req.body;
-        if (!email) return res.status(400).json({ error: 'Email is required' });
-        email = email.trim().toLowerCase();
+        const { email, otp } = req.body;
         if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
 
         const user = await User.findOne({
@@ -285,6 +276,8 @@ app.post('/api/verify-otp', async (req, res) => {
 });
 
 
+
+
 app.get('/api/user/:name', async (req, res) => {
     try {
         const user = await User.findOne({ name: req.params.name }).select('-password');
@@ -304,6 +297,7 @@ app.get('/api/leaderboard', async (req, res) => {
     }
 });
 
+
 app.post('/api/update-score', async (req, res) => {
     try {
         const { userId, email, playerName, score } = req.body;
@@ -311,6 +305,7 @@ app.post('/api/update-score', async (req, res) => {
             return res.status(400).json({ error: 'Score must be a non-negative integer' });
         }
 
+        // Try to find user by userId, email, or playerName
         const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
         const normalizedPlayerName = typeof playerName === 'string' ? playerName.trim() : '';
         let existingUser = null;
@@ -324,23 +319,44 @@ app.post('/api/update-score', async (req, res) => {
         if (!existingUser && !userId && !normalizedEmail && normalizedPlayerName) {
             existingUser = await User.findOne({ name: normalizedPlayerName }).select('_id name');
         }
+
+        const resolvedName = existingUser ? existingUser.name : (normalizedPlayerName || 'Unknown');
+        const numericScore = Number(score);
+
+        // Save individual game score record independently
+        try {
+            await Score.create({ playerName: resolvedName, score: numericScore });
+            console.log(`✅ Score saved: ${resolvedName} = ${numericScore}`);
+        } catch (scoreErr) {
+            console.error('❌ Error saving score document:', scoreErr.message);
+        }
+
         if (!existingUser) {
             return res.status(404).json({
-                error: 'Your account was not found in the configured database. Sign out and sign in again, and verify that Render MONGO_URI points to the database containing your account.'
+                error: 'Your account was not found. Sign out and sign in again, and verify MONGO_URI points to the correct database.'
             });
         }
 
-        await Score.create({ playerName: existingUser.name, score });
-        const user = await User.findByIdAndUpdate(
-            existingUser._id,
-            { $inc: { totalScore: score, gamesPlayed: 1 } },
-            { new: true, runValidators: true }
-        ).select('-password');
-        if (!user) {
+        // Update user cumulative stats independently
+        let updatedUser = null;
+        try {
+            updatedUser = await User.findByIdAndUpdate(
+                existingUser._id,
+                { $inc: { totalScore: numericScore, gamesPlayed: 1 } },
+                { new: true, runValidators: true }
+            ).select('-password');
+            if (updatedUser) console.log(`✅ User updated: ${resolvedName} totalScore=${updatedUser.totalScore}`);
+            else console.warn(`⚠️ User not found during update: ${resolvedName}`);
+        } catch (userErr) {
+            console.error('❌ Error updating user:', userErr.message);
+        }
+
+        if (!updatedUser) {
             return res.status(404).json({ error: 'User not found while updating score' });
         }
-        res.json(user);
+        res.json(updatedUser);
     } catch (err) {
+        console.error('❌ update-score error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -350,12 +366,14 @@ app.get('/api/admin/users', async (req, res) => {
     try {
         const users = await User.find().select('-password');
 
+        // Also find unique players from Score collection who might not have a User record
         const scores = await Score.aggregate([
             { $group: { _id: "$playerName", totalScore: { $sum: "$score" }, lastPlayed: { $max: "$date" }, count: { $sum: 1 } } }
         ]);
 
         const students = [...users];
 
+        // Merge score-only players
         scores.forEach(s => {
             if (!students.find(u => u.name === s._id)) {
                 students.push({
@@ -453,16 +471,20 @@ io.on('connection', (socket) => {
             };
         }
 
+        // Avoid duplicate players if they reconnect
         const existingPlayer = rooms[roomId].players.find(p => p.playerName === playerName);
         if (!existingPlayer) {
             rooms[roomId].players.push({ id: socket.id, playerName, team });
         } else {
             existingPlayer.id = socket.id;
-            existingPlayer.team = team;
+            existingPlayer.team = team; // Update team if changed
         }
 
+        // Send current room state to the newly joined player
         socket.emit('roomUpdate', rooms[roomId]);
         socket.emit('scoreUpdate', rooms[roomId].scores);
+
+        // Notify others
         socket.to(roomId).emit('roomUpdate', rooms[roomId]);
     });
 
@@ -479,19 +501,27 @@ io.on('connection', (socket) => {
             rooms[roomId].scores[team] += points;
             io.to(roomId).emit('scoreUpdate', rooms[roomId].scores);
 
-            if (rooms[roomId].scores[team] >= 200) {
+            if (rooms[roomId].scores[team] >= 200) { // Increased limit for longer games
                 io.to(roomId).emit('gameOver', { winner: team });
 
+                // Save scores to MongoDB
                 rooms[roomId].players.forEach(async (p) => {
+                    const finalScore = rooms[roomId].scores[p.team];
+                    // Save score document independently
                     try {
-                        const finalScore = rooms[roomId].scores[p.team];
                         await Score.create({ playerName: p.playerName, score: finalScore });
+                        console.log(`✅ Multiplayer score saved: ${p.playerName} = ${finalScore}`);
+                    } catch (scoreErr) {
+                        console.error('❌ Error saving multiplayer score doc:', scoreErr.message);
+                    }
+                    // Update user stats independently
+                    try {
                         await User.findOneAndUpdate(
                             { name: p.playerName },
                             { $inc: { totalScore: finalScore, gamesPlayed: 1 } }
                         );
-                    } catch (err) {
-                        console.error('Error saving score:', err);
+                    } catch (userErr) {
+                        console.error('❌ Error updating multiplayer user:', userErr.message);
                     }
                 });
 
@@ -502,6 +532,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('playerUpdate', (data) => {
+        // Broadcast player state to others in the same room
         if (data.roomId) {
             socket.to(data.roomId).emit('opponentUpdate', {
                 id: socket.id,
@@ -512,6 +543,7 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
+        // Clean up empty rooms or remove players
         for (const roomId in rooms) {
             rooms[roomId].players = rooms[roomId].players.filter(p => p.id !== socket.id);
             if (rooms[roomId].players.length === 0) {
@@ -523,7 +555,8 @@ io.on('connection', (socket) => {
     });
 });
 
-// SPA catch-all — MUST be after all API routes
+// SPA catch-all: serve index.html for all non-API GET routes in production.
+// IMPORTANT: This MUST be registered after all API routes so it doesn't intercept them.
 if (process.env.NODE_ENV === 'production') {
     const path = require('path');
     app.get('*', (req, res, next) => {
